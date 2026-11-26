@@ -5,7 +5,7 @@ import vm from 'node:vm';
 const source = path => readFileSync(new URL('../'+path,import.meta.url),'utf8');
 function setup(fetchJson=async()=>({events:[]})){
   const ctx=vm.createContext({fetchJson,getSeasonYear:()=>2026});
-  vm.runInContext(source('js/core/leagues.js')+'\nconst ESPN_BASE=GG_ACTIVE_LEAGUE.scoreboard;\n'+source('js/core/games.js')+'\n'+source('js/core/card-motion.js')+'\n'+source('js/core/schedule.js')+'\n'+source('js/sports/nfl/media.js')+'\n'+source('js/sports/nfl/standings.js')+'\n'+source('js/sports/nfl/fantasy.js')+'\n'+source('js/sports/nfl/waivers.js')+'\n'+source('js/sports/nfl/adapter.js'),ctx);
+  vm.runInContext(source('js/core/leagues.js')+'\nconst ESPN_BASE=GG_ACTIVE_LEAGUE.scoreboard;\n'+source('js/core/games.js')+'\n'+source('js/core/card-motion.js')+'\n'+source('js/core/schedule.js')+'\n'+source('js/sports/nfl/media.js')+'\n'+source('js/sports/nfl/standings.js')+'\n'+source('js/sports/nfl/fantasy.js')+'\n'+source('js/sports/nfl/waivers.js')+'\n'+source('js/sports/nfl/adapter.js')+'\n'+source('js/sports/soccer/adapter.js'),ctx);
   return ctx;
 }
 const run=(ctx,code)=>vm.runInContext(code,ctx);
@@ -41,3 +41,8 @@ test('NFL week fallback preserves 2026 boundaries and uses game season in later 
 test('NFL network classification prioritizes explicit streaming and parent networks',()=>{const c=setup();assert.equal(c.classifyBroadcastNetwork({network:'Netflix'}),'NETFLIX');assert.equal(c.classifyBroadcastNetwork({network:'Peacock'}),'PEACOCK_EXCLUSIVE');assert.equal(c.classifyBroadcastNetwork({network:'NBC / Peacock'}),'NBC');assert.equal(c.classifyBroadcastNetwork({network:'CBS 2'}),'CBS')});
 test('Sunday Ticket window excludes postseason and non-Sunday games',()=>{const c=setup();const g={network:'CBS',dateTime:new Date(2026,10,29,13),seasonType:2};assert.equal(c.isSundayTicketWindow(g),true);assert.equal(c.isSundayTicketWindow({...g,seasonType:3}),false);assert.equal(c.isSundayTicketWindow({...g,dateTime:new Date(2026,10,30,13)}),false)});
 test('broadcast names deduplicate primary and alternate feeds',()=>{const c=setup();assert.equal(c.getBroadcastNames({network:'NBC',broadcasts:[{name:'NBC'},{shortName:'Peacock'}]}).join(','),'NBC,Peacock')});
+
+test('soccer normalization keeps zero score, clock and isolated identity',()=>{const c=setup();const e=event('1');e.competitions[0].status={type:{state:'in'},displayClock:"67'"};const g=c.ggSoccerNormalize({events:[e,e]},'mls');assert.equal(g.length,1);assert.equal(g[0].gameKey,'mls:1');assert.equal(g[0].awayScore,'0');assert.equal(g[0].clock,"67'")});
+test('soccer providers never invent NFL access',()=>{const c=setup();assert.equal(c.ggSoccerProviders({broadcasts:[]}).length,0);assert.equal(c.ggSoccerProviders({broadcasts:['Apple TV','Apple TV']}).length,1);assert.equal(c.ggSoccerProviders({broadcasts:['Peacock']})[0].label,'Peacock')});
+test('soccer date query spans adjacent dates at month boundary',()=>{const c=setup();assert.equal(c.ggSoccerDateRange('2026-12-01'),'20261130-20261202')});
+test('soccer fetch isolates league and local date',async()=>{const c=setup();let url;const e=event('2',new Date(2026,10,28,12).toISOString());const games=await c.ggSoccerFetch('epl','2026-11-28',async u=>{url=u;return {events:[e]}});assert.match(url,/soccer\/eng\.1\/scoreboard/);assert.equal(games.length,1);assert.equal(games[0].leagueId,'epl')});
