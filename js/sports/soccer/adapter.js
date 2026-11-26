@@ -28,6 +28,7 @@ async function ggSoccerFetch(leagueId,day,request=fetchJson){
     try{const raw=await request(url);if(!Array.isArray(raw?.events))throw Error("Invalid ESPN response: missing events");const games=ggSoccerNormalize(raw,leagueId).filter(g=>ggLocalDateKey(g.dateTime)===day);
       if(leagueId==="nba"){
         // Scoreboard data may omit TV feeds. Check game summaries only for unresolved games.
+        ggNbaMergeOfficial(games,await ggNbaOfficialGames(request));
         const missing=games.filter(g=>g.status!=="post"&&!ggNbaProviders(g).length);
         for(let i=0;i<missing.length;i+=2){
           await Promise.allSettled(missing.slice(i,i+2).map(async g=>{
