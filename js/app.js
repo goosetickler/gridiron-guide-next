@@ -1306,17 +1306,6 @@ let directvZip=localStorage.getItem(DIRECTV_ZIP_KEY)||"";
     // or ESPN affiliates. A positive assignment in the weekly JSON is required.
     // Only confirmed national distribution or an explicit market-level JSON match
     // earns a broadcast badge. Unknown coverage remains unlabelled.
-    function isConfirmedNationalBroadcast(game){
-      const network=classifyBroadcastNetwork(game);
-      if(["NBC","ESPN","PRIME","NETFLIX","PEACOCK_EXCLUSIVE","NFL_NETWORK","FOX_NATIONAL"].includes(network))return true;
-      // ABC games may be regional simulcasts; only label ABC when paired with ESPN
-      // or when the schedule explicitly marks it as a national broadcast.
-      if(network==="ABC"){
-        const names=getBroadcastNames(game).join(" | ");
-        return /\bespn\b/i.test(names) || game.nationalBroadcast===true || game.isNational===true;
-      }
-      return game.nationalBroadcast===true || game.isNational===true;
-    }
     function renderConfirmedLocalBadge(game){
       const assignment=getWeeklyCoverageAssignment(game);
       if(!assignment?.match)return "";
@@ -3278,7 +3267,6 @@ let directvZip=localStorage.getItem(DIRECTV_ZIP_KEY)||"";
       return s.toUpperCase();
     }
     function hasScore(game){ return game.awayScore !== undefined && game.homeScore !== undefined && game.awayScore !== "" && game.homeScore !== ""; }
-    function playIcon(){ return `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="rgba(7,17,29,.18)"/><path d="M10 8.5v7l6-3.5-6-3.5Z" fill="currentColor"/></svg>`; }
     function bellIcon(filled=false){return `<svg viewBox="0 0 24 24" aria-hidden="true" fill="${filled?"currentColor":"none"}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg>`;}
     function slug(value){ return String(value).toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,""); }
     function escapeHtml(value){ return String(value ?? "").replace(/[&<>'"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[c])); }
