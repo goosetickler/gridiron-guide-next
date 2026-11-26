@@ -1664,8 +1664,7 @@ let directvZip=localStorage.getItem(DIRECTV_ZIP_KEY)||"";
     function renderSchedule(){
       if(sortMode==="live"){sortMode="kickoff";gamesSubview="live";}
       const remainingLocalCount=remainingConfirmedLocalGames().length;
-      const previewScoped=selectedScheduleWeek?allGames.filter(g=>scheduleWeekKey(g)===selectedScheduleWeek):allGames;
-      for(const [key,n] of Object.entries({all:previewScoped.filter(g=>!isFinalGame(g)).length,live:previewScoped.filter(isLiveGame).length,local:remainingLocalCount,results:previewScoped.filter(isFinalGame).length})){const el=document.querySelector(`[data-preview-count="${key}"]`);if(el)el.textContent=n;}
+      updatePreviewCounts();
       const games = getDisplayGames();
       updateWeekRange(games);
       updateFilterCounts();
@@ -3408,6 +3407,12 @@ let directvZip=localStorage.getItem(DIRECTV_ZIP_KEY)||"";
       }
     });
 
+    function updatePreviewCounts(){
+      const remainingLocalCount=remainingConfirmedLocalGames().length;
+      const previewScoped=selectedScheduleWeek?allGames.filter(g=>scheduleWeekKey(g)===selectedScheduleWeek):allGames;
+      for(const [key,n] of Object.entries({all:previewScoped.filter(g=>!isFinalGame(g)).length,live:previewScoped.filter(isLiveGame).length,local:remainingLocalCount,results:previewScoped.filter(isFinalGame).length})){const el=document.querySelector(`[data-preview-count="${key}"]`);if(el)el.textContent=n;}
+    }
+
     function updateFilterCounts(){
       const scoped=selectedScheduleWeek
         ? allGames.filter(g=>scheduleWeekKey(g)===selectedScheduleWeek)
@@ -3503,6 +3508,8 @@ let directvZip=localStorage.getItem(DIRECTV_ZIP_KEY)||"";
             // A game finishing may change the contextual Local count even if
             // the All Games visible card list was otherwise unchanged.
             syncGamesSubviewControls();
+            updatePreviewCounts();
+            updateFilterCounts();
           }
         }
         scheduleScoreRefresh();
