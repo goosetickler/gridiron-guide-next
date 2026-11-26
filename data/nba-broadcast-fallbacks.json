@@ -1,0 +1,72 @@
+[
+  {
+    "id": "401909328",
+    "dateTime": "2026-11-28T00:30Z",
+    "broadcasts": [
+      "NBC Sports Philadelphia",
+      "WTTV",
+      "DAZN"
+    ],
+    "source": "Sports Media Watch NBA TV schedule, checked 2026-11-26"
+  },
+  {
+    "id": "401909330",
+    "dateTime": "2026-11-28T01:00Z",
+    "broadcasts": [
+      "WANF",
+      "WPCH.2",
+      "NBC Sports Boston"
+    ],
+    "source": "Sports Media Watch NBA TV schedule, checked 2026-11-26"
+  },
+  {
+    "id": "401910055",
+    "dateTime": "2026-11-29T23:00Z",
+    "broadcasts": [
+      "WRDQ",
+      "WMYD",
+      "DAZN"
+    ],
+    "source": "Sports Media Watch NBA TV schedule, checked 2026-11-26"
+  },
+  {
+    "id": "401910056",
+    "dateTime": "2026-11-29T23:00Z",
+    "broadcasts": [
+      "WANF",
+      "WPCH.2",
+      "MSG",
+      "DAZN"
+    ],
+    "source": "Sports Media Watch NBA TV schedule, checked 2026-11-26"
+  },
+  {
+    "id": "401910057",
+    "dateTime": "2026-11-29T23:00Z",
+    "broadcasts": [
+      "Altitude",
+      "TSN"
+    ],
+    "source": "Sports Media Watch NBA TV schedule, checked 2026-11-26"
+  },
+  {
+    "id": "401910062",
+    "dateTime": "2026-12-01T00:00Z",
+    "broadcasts": [
+      "Altitude",
+      "WMYD",
+      "DAZN"
+    ],
+    "source": "Sports Media Watch NBA TV schedule, checked 2026-11-26"
+  },
+  {
+    "id": "401910078",
+    "dateTime": "2026-12-03T00:30Z",
+    "broadcasts": [
+      "WAXN",
+      "NBC Sports Boston",
+      "DAZN"
+    ],
+    "source": "Sports Media Watch NBA TV schedule, checked 2026-11-26"
+  }
+]
