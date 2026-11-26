@@ -27,8 +27,7 @@
         const broadcast = broadcasts[0]?.name || "TBD";
         const id = event.id || event.uid || `${away.team?.abbreviation}-${home.team?.abbreviation}-${event.date}`;
         if(seen.has(id)) return null;
-        seen.add(id);
-        return {
+        const game = ggNormalizeGame({
           id,
           dateTime: event.date || competition.date,
           homeTeam: home.team?.displayName || home.team?.name || "Home Team",
@@ -55,8 +54,10 @@
           seasonYear:Number(event.season?.year||raw?.season?.year||getSeasonYear()),
           seasonType:Number(event.season?.type||raw?.season?.type||0),
           weekNumber:Number(event.week?.number||raw?.week?.number||0)
-        };
-      }).filter(g => g && g.dateTime && !Number.isNaN(new Date(g.dateTime).getTime()));
+        },"nfl");
+        if(game)seen.add(id);
+        return game;
+      }).filter(Boolean);
     }
 
     function getLogo(team){
