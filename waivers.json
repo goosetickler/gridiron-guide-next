@@ -1,0 +1,262 @@
+{
+  "season": 2026,
+  "updated": "2026-11-24",
+  "rosteredNote": "Estimated rostered level, not measured percentages. Low = less widely rostered (more likely available); Medium = mixed; High = widely rostered (less likely available).",
+  "weeks": {
+    "10": {
+      "updated": "2026-11-14",
+      "players": [
+        {
+          "rank": 1,
+          "name": "Jordyn Tyson",
+          "team": "NO",
+          "position": "WR",
+          "rostered": "Medium",
+          "summary": "Tyson drew five targets on just 16 routes in his NFL debut, giving him a path to a much bigger role in New Orleans. He is still ramping up after a hamstring injury, so treat him as an upside stash rather than an automatic starter."
+        },
+        {
+          "rank": 2,
+          "name": "Corey Kiner",
+          "team": "NE",
+          "position": "RB",
+          "rostered": "Low",
+          "summary": "Rhamondre Stevenson's knee injury has opened a path to lead-back touches for Kiner, who has been productive with his carries. His value depends on Stevenson and TreVeyon Henderson's health, so keep an eye on the injury reports."
+        },
+        {
+          "rank": 3,
+          "name": "DeMario Douglas",
+          "team": "NE",
+          "position": "WR",
+          "rostered": "Medium",
+          "summary": "Douglas has become a useful PPR option and recently drew a season-high nine targets for New England. His receiving volume is encouraging, but the Patriots have enough pass catchers to make his weekly floor uncertain."
+        },
+        {
+          "rank": 4,
+          "name": "Tank Dell",
+          "team": "HOU",
+          "position": "WR",
+          "rostered": "Medium",
+          "summary": "Dell turned nine targets into 105 yards and a touchdown against the Chargers, flashing the upside that made him a fantasy target. He's still working back into a full route share after a long injury absence, so expect some week-to-week volatility."
+        },
+        {
+          "rank": 5,
+          "name": "Audric Estime",
+          "team": "NO",
+          "position": "RB",
+          "rostered": "Low",
+          "summary": "Estime ran 15 times for 72 yards and a touchdown as New Orleans searched for backfield production. He could help in the short term, but Travis Etienne's return threatens to cut into his workload."
+        },
+        {
+          "rank": 6,
+          "name": "Kaelon Black",
+          "team": "SF",
+          "position": "RB",
+          "rostered": "Low",
+          "summary": "Black rushed for 70 yards on 11 carries and has emerged as San Francisco's clear backup to Christian McCaffrey. His increased usage is promising, but he's primarily a high-upside handcuff while McCaffrey is healthy."
+        },
+        {
+          "rank": 7,
+          "name": "Caleb Douglas",
+          "team": "MIA",
+          "position": "WR",
+          "rostered": "Low",
+          "summary": "Douglas caught six of eight targets against Detroit and is earning a meaningful role in Miami's passing game. The target volume makes him interesting, but shaky quarterback play could limit his weekly ceiling."
+        },
+        {
+          "rank": 8,
+          "name": "Chig Okonkwo",
+          "team": "WAS",
+          "position": "TE",
+          "rostered": "Medium",
+          "summary": "Okonkwo has been drawing steady targets as Washington's main receiving tight end, making him worth a look in PPR leagues. He managed four catches for 24 yards on Thursday, so view him as a depth or streaming option rather than a must-start."
+        },
+        {
+          "rank": 9,
+          "name": "Ryan Flournoy",
+          "team": "DAL",
+          "position": "WR",
+          "rostered": "Low",
+          "summary": "Flournoy has shown useful flashes for Dallas and could see more opportunities if George Pickens remains sidelined. His limited targets against Indianapolis highlight the risk of relying on him as a weekly starter."
+        },
+        {
+          "rank": 10,
+          "name": "Emmett Johnson",
+          "team": "KC",
+          "position": "RB",
+          "rostered": "Low",
+          "summary": "Kenneth Walker has been ruled out for Week 10, putting Johnson in line for a major role against Atlanta. He's an attractive immediate pickup, but his workload could shrink quickly when Walker returns."
+        }
+      ]
+    },
+    "11": {
+      "updated": "2026-11-17",
+      "players": [
+        {
+          "rank": 1,
+          "name": "Jordyn Tyson",
+          "team": "NO",
+          "position": "WR",
+          "rostered": "Medium",
+          "summary": "Tyson led New Orleans in Week 10 with 13 targets and 11 catches after expanding to 30 routes in just his second game. His snap role is still developing and the Saints' passing efficiency can cap his weekly ceiling."
+        },
+        {
+          "rank": 2,
+          "name": "Keenan Allen",
+          "team": "SF",
+          "position": "WR",
+          "rostered": "High",
+          "summary": "Allen caught five of seven targets for 61 yards in his first game with San Francisco, giving him immediate PPR appeal. His route load was only 20 and Mike Evans' eventual return could reduce his opportunities."
+        },
+        {
+          "rank": 3,
+          "name": "Kaelon Black",
+          "team": "SF",
+          "position": "RB",
+          "rostered": "Medium",
+          "summary": "Black has logged double-digit carries in three straight games and scored against Dallas while backing up Christian McCaffrey. His weekly ceiling remains game-script dependent unless McCaffrey misses time."
+        },
+        {
+          "rank": 4,
+          "name": "Caleb Douglas",
+          "team": "MIA",
+          "position": "WR",
+          "rostered": "Medium",
+          "summary": "Douglas has reached 70 receiving yards in three of his last four games and drawn eight targets in each of the last two. Miami's unsettled quarterback play and a difficult Buffalo matchup still make him a volatile flex."
+        },
+        {
+          "rank": 5,
+          "name": "Seth McGowan",
+          "team": "IND",
+          "position": "RB",
+          "rostered": "Low",
+          "summary": "McGowan carried 12 times for 77 yards and a touchdown in Week 10 as Indianapolis leaned heavily on the run. Jonathan Taylor remains the lead back, so McGowan is a complementary option with contingent upside."
+        },
+        {
+          "rank": 6,
+          "name": "Chig Okonkwo",
+          "team": "WAS",
+          "position": "TE",
+          "rostered": "Low",
+          "summary": "Okonkwo drew a season-high eight targets in Week 10 and gets a Bengals defense that has been generous to tight ends. He had a back issue before returning, so confirm his health and expect more volume than touchdown upside."
+        },
+        {
+          "rank": 7,
+          "name": "Cam Ward",
+          "team": "TEN",
+          "position": "QB",
+          "rostered": "Low",
+          "summary": "Ward has delivered more than 200 passing yards and multiple touchdowns in consecutive games as Tennessee has increased its offensive pace. The Cowboys matchup boosts his Week 11 streaming case, but his early-season struggles keep the floor uncertain."
+        },
+        {
+          "rank": 8,
+          "name": "Adonai Mitchell",
+          "team": "NYJ",
+          "position": "WR",
+          "rostered": "Medium",
+          "summary": "Mitchell drew eight targets in Week 10 and could see an expanded role if Omar Cooper misses time with an ankle injury. Geno Smith's own ankle issue clouds the quarterback situation and creates downside for Mitchell's efficiency."
+        },
+        {
+          "rank": 9,
+          "name": "Michael Mayer",
+          "team": "LV",
+          "position": "TE",
+          "rostered": "Low",
+          "summary": "Mayer could become a prominent Raiders target if Brock Bowers sits with his ankle issue, and Denver has allowed substantial fantasy production to tight ends. Bowers may be available, so Mayer is a conditional pickup rather than a locked-in starter."
+        },
+        {
+          "rank": 10,
+          "name": "Antonio Williams",
+          "team": "WAS",
+          "position": "WR",
+          "rostered": "Low",
+          "summary": "Williams has run routes on nearly nine in ten Washington dropbacks across the last three games, giving him a substantial role after Terry McLaurin's injury. His modest target share and inconsistent production make him a speculative add despite a favorable upcoming schedule."
+        }
+      ]
+    },
+    "12": {
+      "updated": "2026-11-24",
+      "players": [
+        {
+          "rank": 1,
+          "name": "Jacory Croskey-Merritt",
+          "team": "WAS",
+          "position": "RB",
+          "rostered": "Medium",
+          "summary": "In his return from a groin injury, Croskey-Merritt carried 13 times for 54 yards and a touchdown, positioning him for useful work against Arizona. Austin Ekeler remains involved, so a dominant workload is not guaranteed."
+        },
+        {
+          "rank": 2,
+          "name": "Antonio Williams",
+          "team": "WAS",
+          "position": "WR",
+          "rostered": "Medium",
+          "summary": "Williams caught nine passes for 122 yards against Cincinnati and now faces Arizona. His breakout is promising, but one big game does not establish a dependable weekly target floor."
+        },
+        {
+          "rank": 3,
+          "name": "Justice Hill",
+          "team": "BAL",
+          "position": "RB",
+          "rostered": "Low",
+          "summary": "Hill has exceeded 90 scrimmage yards twice in his last three games and offers receiving value against Houston. Derrick Henry remains a major obstacle to consistent rushing volume."
+        },
+        {
+          "rank": 4,
+          "name": "Caleb Douglas",
+          "team": "MIA",
+          "position": "WR",
+          "rostered": "Medium",
+          "summary": "Douglas drew ten targets in Week 11 and has a chance to turn that volume into production against the Jets. He caught only two of those passes, illustrating the efficiency risk in Miami's offense."
+        },
+        {
+          "rank": 5,
+          "name": "Chimere Dike",
+          "team": "TEN",
+          "position": "WR",
+          "rostered": "Low",
+          "summary": "Dike recorded six receptions for 69 yards against Dallas after Wan'Dale Robinson suffered a season-ending injury. Carnell Tate remains a competing target as Tennessee visits Jacksonville."
+        },
+        {
+          "rank": 6,
+          "name": "Konata Mumpfield",
+          "team": "LAR",
+          "position": "WR",
+          "rostered": "Low",
+          "summary": "Puka Nacua's season-ending injury opens receiving opportunities for Mumpfield ahead of Wednesday's game against Green Bay. Matthew Stafford can distribute those targets among several receivers, leaving Mumpfield's weekly workload uncertain."
+        },
+        {
+          "rank": 7,
+          "name": "Dylan Sampson",
+          "team": "CLE",
+          "position": "RB",
+          "rostered": "Low",
+          "summary": "Sampson's receiving role gives him a route to PPR production against Las Vegas following Cleveland's bye. His backup status limits his rushing ceiling unless the backfield rotation changes."
+        },
+        {
+          "rank": 8,
+          "name": "Ted Hurst",
+          "team": "TB",
+          "position": "WR",
+          "rostered": "Low",
+          "summary": "Hurst caught five passes for 56 yards and two touchdowns against Detroit before a matchup with Carolina. He ran fewer routes than Chris Godwin and Emeka Egbuka, making a repeat of that scoring output unlikely."
+        },
+        {
+          "rank": 9,
+          "name": "Cam Ward",
+          "team": "TEN",
+          "position": "QB",
+          "rostered": "Medium",
+          "summary": "Ward has surpassed 19 fantasy points in three consecutive games and visits Jacksonville this week. His recent improvement makes him a streaming candidate, but his earlier inconsistency argues against treating him as a set-and-forget starter."
+        },
+        {
+          "rank": 10,
+          "name": "Evan Engram",
+          "team": "DEN",
+          "position": "TE",
+          "rostered": "Low",
+          "summary": "Engram caught six passes for 74 yards against Las Vegas and faces Pittsburgh on Friday. His recent receiving volume is encouraging, but it has not established a reliable touchdown floor."
+        }
+      ]
+    }
+  }
+}
