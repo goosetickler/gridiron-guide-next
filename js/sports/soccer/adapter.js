@@ -25,7 +25,25 @@ async function ggSoccerFetch(leagueId,day,request=fetchJson){
   const urls=[league.scoreboard+query,league.scoreboard.replace("site.api.espn.com","site.web.api.espn.com")+query,league.scoreboard+"?dates="+day.replace(/-/g,"")];
   const errors=[];
   for(const url of urls){
-    try{const raw=await request(url);if(!Array.isArray(raw?.events))throw Error("Invalid ESPN response: missing events");return ggSoccerNormalize(raw,leagueId).filter(g=>ggLocalDateKey(g.dateTime)===day);}
+    try{const raw=await request(url);if(!Array.isArray(raw?.events))throw Error("Invalid ESPN response: missing events");const games=ggSoccerNormalize(raw,leagueId).filter(g=>ggLocalDateKey(g.dateTime)===day);
+      if(leagueId==="nba"){
+        // Scoreboard data may omit TV feeds. Check game summaries only for unresolved games.
+        const missing=games.filter(g=>g.status!=="post"&&!ggNbaProviders(g).length);
+        for(let i=0;i<missing.length;i+=2){
+          await Promise.allSettled(missing.slice(i,i+2).map(async g=>{
+            const summary=await request(league.summary+"?event="+encodeURIComponent(g.id));
+            const c=summary?.header?.competitions?.[0]||{};
+            const names=new Set(g.broadcasts||[]);
+            for(const b of [...(c.broadcasts||[]),...(c.geoBroadcasts||[]),...(c.geoStreaming||[]),...(summary.broadcasts||[])]){
+              const region=String(b?.region||"").toLowerCase();
+              if(region&&!["us","usa","united states"].includes(region))continue;
+              for(const n of [...(Array.isArray(b?.names)?b.names:[]),b?.name,b?.shortName,b?.media?.name,b?.media?.shortName])if(typeof n==="string"&&n.trim())names.add(n.trim());
+            }
+            g.broadcasts=[...names];g.network=ggNbaProviders(g)[0]?.network||g.network;
+          }));
+        }
+      }
+      return games;}
     catch(e){errors.push(url.split("/")[2]+": "+(e?.message||String(e)));}
   }
   throw Error(errors.join(" | "));
