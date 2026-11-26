@@ -9,7 +9,7 @@
   <meta name="apple-mobile-web-app-title" content="Gridiron Guide" />
   <meta name="mobile-web-app-capable" content="yes" />
   <title>Gridiron Guide</title>
-  <link rel="stylesheet" href="./css/app.css" />
+  <link rel="stylesheet" href="./css/app.css?v=7" />
 
 
 
@@ -56,7 +56,7 @@
         </div>
       </div>
 
-<div class="preview-selectors"><select id="previewSport" aria-label="Sport and league" onchange="if(this.value!=='nfl')location.href='./soccer.html?league='+this.value"><option value="nfl">NFL</option><option value="mls">MLS</option><option value="epl">Premier League</option></select><div class="preview-date-wrap"><button type="button" class="selector-trigger" id="previewWeek" aria-label="Schedule date range" aria-expanded="false" aria-controls="previewWeekMenu"><span id="previewWeekLabel">Dates</span><span class="selector-grab-handle" aria-hidden="true"></span></button><div class="results-nav-menu" id="previewWeekMenu" data-week-nav-menu hidden></div></div></div>
+<div class="preview-selectors"><div class="preview-date-wrap"><button type="button" class="selector-trigger" id="previewSport" aria-expanded="false" aria-controls="previewSportMenu"><span>NFL</span><span class="selector-grab-handle" aria-hidden="true"></span></button><div id="previewSportMenu" class="results-nav-menu" hidden><button type="button" class="active" data-gg-league="nfl">NFL</button><button type="button" data-gg-league="mls">MLS</button><button type="button" data-gg-league="epl">Premier League</button></div></div><div class="preview-date-wrap"><button type="button" class="selector-trigger" id="previewWeek" aria-label="Schedule date range" aria-expanded="false" aria-controls="previewWeekMenu"><span id="previewWeekLabel">Dates</span><span class="selector-grab-handle" aria-hidden="true"></span></button><div class="results-nav-menu" id="previewWeekMenu" data-week-nav-menu hidden></div></div></div>
 <nav class="preview-filters" aria-label="Game views"><button type="button" data-dashboard="all">All <span data-preview-count="all"></span></button><button type="button" data-dashboard="live">Live <span data-preview-count="live"></span></button><button type="button" data-dashboard="local">Local <span data-preview-count="local"></span></button><button type="button" data-dashboard="results">Results <span data-preview-count="results"></span></button><button type="button" data-dashboard="fantasy">Fantasy</button></nav>
 <div hidden><button id="headerWeekBtn" type="button"></button><section class="week-bar week-nav-shell" id="inlineWeekPicker" hidden aria-label="NFL week schedule navigation">
         <button id="weekPrevBtn" class="week-arrow" type="button" aria-label="Previous week">‹</button>
@@ -183,6 +183,6 @@
   <script src="./js/sports/nfl/fantasy.js"></script>
   <script src="./js/sports/nfl/waivers.js"></script>
   <script src="./js/sports/nfl/adapter.js"></script>
-  <script src="./js/app.js?v=6"></script>
-</body>
+  <script src="./js/app.js?v=7"></script>
+<script>(()=>{const b=document.getElementById("previewSport"),m=document.getElementById("previewSportMenu");const close=()=>{m.hidden=true;b.setAttribute("aria-expanded","false")};b.addEventListener("click",e=>{e.stopPropagation();const open=m.hidden;if(open){document.getElementById("previewWeekMenu").hidden=true;document.getElementById("previewWeek").setAttribute("aria-expanded","false")}m.hidden=!open;b.setAttribute("aria-expanded",String(open))});m.addEventListener("click",e=>{const l=e.target.closest("[data-gg-league]")?.dataset.ggLeague;if(!l)return;close();if(l!=="nfl")location.href="./soccer.html?league="+l});document.addEventListener("click",e=>{if(!m.contains(e.target)&&!b.contains(e.target))close()});document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!m.hidden){close();b.focus()}});window.addEventListener("pageshow",close)})();</script></body>
 </html>
