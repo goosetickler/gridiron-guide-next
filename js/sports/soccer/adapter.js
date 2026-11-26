@@ -1,6 +1,6 @@
 // Soccer scoreboard adapter. No NFL state or provider defaults.
 function ggSoccerNormalize(raw,leagueId){
-  if(!["soccer","basketball"].includes(GG_LEAGUES[leagueId]?.sport))throw Error("Not a soccer league");
+  if(!["soccer","basketball","hockey"].includes(GG_LEAGUES[leagueId]?.sport))throw Error("Unsupported scoreboard league");
   const seen=new Set(),games=[];
   for(const e of raw?.events||[]){
     const c=e.competitions?.[0],h=c?.competitors?.find(t=>t.homeAway==="home"),a=c?.competitors?.find(t=>t.homeAway==="away");
@@ -8,8 +8,8 @@ function ggSoccerNormalize(raw,leagueId){
     const status=c.status||e.status||{},type=status.type||{};
     const list=x=>Array.isArray(x)?x:[];
     const names=[...list(c.broadcasts).flatMap(b=>list(b?.names).length?b.names:[b?.name||b?.shortName]),...list(c.geoBroadcasts).filter(b=>String(b?.region||b?.market?.type||"").toLowerCase()==="us").map(b=>b.media?.shortName)].filter(x=>typeof x==="string"&&x.trim());
-    if(leagueId==="nba"){for(const b of [...list(c.geoBroadcasts),...list(c.geoStreaming),...list(c.broadcasts),...list(e.broadcasts)]){const region=String(b?.region||"").toLowerCase();if(region&& !["us","usa","united states"].includes(region))continue;for(const n of [...list(b?.names),b?.media?.shortName,b?.media?.name,b?.name,b?.shortName])if(typeof n==="string"&&n.trim())names.push(n.trim());}}const broadcasts=[...new Set(names)];
-    const g=ggNormalizeGame({id:String(e.id),dateTime:e.date||c.date,homeTeam:leagueId==="nba"?(h.team.shortDisplayName||h.team.name):h.team.displayName||h.team.name,awayTeam:leagueId==="nba"?(a.team.shortDisplayName||a.team.name):a.team.displayName||a.team.name,homeAbbr:h.team.abbreviation,awayAbbr:a.team.abbreviation,homeLogo:h.team.logo||h.team.logos?.[0]?.href||"",awayLogo:a.team.logo||a.team.logos?.[0]?.href||"",homeScore:h.score,awayScore:a.score,homePenaltyScore:h.shootoutScore,awayPenaltyScore:a.shootoutScore,status:type.state||"pre",statusName:type.name||"",statusDetail:type.shortDetail||type.description||"",clock:status.displayClock||"",network:broadcasts[0]||"TBD",broadcasts,venue:c.venue?.fullName||""},leagueId);
+    if(["nba","nhl"].includes(leagueId)){for(const b of [...list(c.geoBroadcasts),...list(c.geoStreaming),...list(c.broadcasts),...list(e.broadcasts)]){const region=String(b?.region||"").toLowerCase();if(region&& !["us","usa","united states"].includes(region))continue;for(const n of [...list(b?.names),b?.media?.shortName,b?.media?.name,b?.name,b?.shortName])if(typeof n==="string"&&n.trim())names.push(n.trim());}}const broadcasts=[...new Set(names)];
+    const g=ggNormalizeGame({id:String(e.id),dateTime:e.date||c.date,homeTeam:["nba","nhl"].includes(leagueId)?(h.team.shortDisplayName||h.team.name):h.team.displayName||h.team.name,awayTeam:["nba","nhl"].includes(leagueId)?(a.team.shortDisplayName||a.team.name):a.team.displayName||a.team.name,homeAbbr:h.team.abbreviation,awayAbbr:a.team.abbreviation,homeLogo:h.team.logo||h.team.logos?.[0]?.href||"",awayLogo:a.team.logo||a.team.logos?.[0]?.href||"",homeScore:h.score,awayScore:a.score,homePenaltyScore:h.shootoutScore,awayPenaltyScore:a.shootoutScore,status:type.state||"pre",statusName:type.name||"",statusDetail:type.shortDetail||type.description||"",clock:status.displayClock||"",network:broadcasts[0]||"TBD",broadcasts,venue:c.venue?.fullName||""},leagueId);
     if(g){seen.add(g.id);games.push(g)}
   }
   return games.sort((a,b)=>new Date(a.dateTime)-new Date(b.dateTime));
@@ -20,7 +20,7 @@ function ggSoccerDateRange(day){
   return [from,to].map(x=>ggLocalDateKey(x).replace(/-/g,"")).join("-");
 }
 async function ggSoccerFetch(leagueId,day,request=fetchJson){
-  const league=GG_LEAGUES[leagueId];if(!["soccer","basketball"].includes(league?.sport))throw Error("Not a soccer league");
+  const league=GG_LEAGUES[leagueId];if(!["soccer","basketball","hockey"].includes(league?.sport))throw Error("Unsupported scoreboard league");
   const range=ggSoccerDateRange(day),query="?dates="+range+"&limit=200";
   const urls=[league.scoreboard+query,league.scoreboard.replace("site.api.espn.com","site.web.api.espn.com")+query,league.scoreboard+"?dates="+day.replace(/-/g,"")];
   const errors=[];
