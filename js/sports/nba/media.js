@@ -1,6 +1,12 @@
 // NBA broadcast aliases: only explicit reported networks, never infer availability from teams.
 function ggNbaProviders(game){
  const rules=[
+ [/^dazn(?:\s+(?:MIN|MEM|IND|CLE|SAS)|\s*\(YES\))$/i,"DAZN","https://www.dazn.com/",4],
+ [/^(?:alt|alt\+)$/i,"Altitude","https://www.altitudesports.com/",4],
+ [/^(?:nbcsca|nbc sports california)$/i,"NBC Sports California","https://www.nbcsports.com/",4],
+ [/^(?:nbcsp\+|nbcsb\+|nbcsba\+)$/i,null,"https://www.nbcsports.com/",4],
+ [/^(?:my24|wcgv(?:-my24)?|wmyd(?:-ind)?|wttv(?:-cbs)?|wrdq(?:-ind)?|waxn(?:-tv64)?|wanf|wpch(?:\.2)?)$/i,null,"https://www.nba.com/news/local-viewing-options",4],
+
  [/^spectrum sports net(?: \\+)?$/i,"Spectrum SportsNet","https://spectrumsportsnet.com/",4],
  [/^bucks app$/i,"Bucks App","https://www.nba.com/bucks",4],
  [/^thunder app$/i,"Thunder App","https://www.nba.com/thunder",4],
