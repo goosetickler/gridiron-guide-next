@@ -1,6 +1,16 @@
 // NBA broadcast aliases: only explicit reported networks, never infer availability from teams.
 function ggNbaProviders(game){
  const rules=[
+ [/^spectrum sports net(?: \\+)?$/i,"Spectrum SportsNet","https://spectrumsportsnet.com/",4],
+ [/^bucks app$/i,"Bucks App","https://www.nba.com/bucks",4],
+ [/^thunder app$/i,"Thunder App","https://www.nba.com/thunder",4],
+ [/^jazz\\+$/i,"Jazz+","https://www.nba.com/jazz",4],
+ [/^blazervision$/i,"BlazerVision","https://www.nba.com/blazers",4],
+ [/^mnmt2?$/i,null,"https://www.monumentalsportsnetwork.com/",4],
+ [/^gcsen$/i,"Gulf Coast Sports","https://www.nba.com/pelicans",4],
+ [/^pelicans\\.com$/i,"Pelicans.com","https://www.nba.com/pelicans",4],
+ [/^(?:kjzz-tv|kunp 16|kfaa-tv|arizona's family 3tv)$/i,null,"https://www.nba.com/news/local-viewing-options",4],
+ [/^dazn \\(yes\\)$/i,"YES","https://www.gothamsports.com/",4],
  [/^(amazon(?: prime(?: video)?)?|prime(?: video)?)$/i,"Prime Video","https://www.primevideo.com/",2],
  [/^peacock(?: premium)?$/i,"Peacock","https://www.peacocktv.com/",2],
  [/^(?:nbc|nba on nbc)$/i,"NBC","https://www.nbc.com/live",1],
