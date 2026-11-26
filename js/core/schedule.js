@@ -1,8 +1,13 @@
     function ggNflWeekKey(g){
       const type=Number(g.seasonType||0),week=Number(g.weekNumber||0);
       if(type&&week)return `${type}:${week}`;
-      const d=new Date(g.dateTime),rs=new Date("2026-09-06");
-      if(d<rs)return `1:${Math.max(1,Math.min(3,Math.floor((d-new Date("2026-08-01"))/604800000)+1))}`;
+      const d=new Date(g.dateTime);
+      if(!Number.isFinite(d.getTime()))return "";
+      const season=Number(g.seasonYear)|| (d.getUTCMonth()<=1?d.getUTCFullYear()-1:d.getUTCFullYear());
+      // Approximate fallback only; ESPN week metadata always takes precedence.
+      const rs=new Date(Date.UTC(season,8,1));
+      rs.setUTCDate(rs.getUTCDate()+(7-rs.getUTCDay())%7);
+      if(d<rs)return `1:${Math.max(1,Math.min(3,Math.floor((d-new Date(Date.UTC(season,7,1)))/604800000)+1))}`;
       return `2:${Math.max(1,Math.min(18,Math.floor((d-rs)/604800000)+1))}`;
     }
     function ggNflScheduleWeeks(games){
