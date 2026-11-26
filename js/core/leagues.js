@@ -4,6 +4,7 @@ const GG_SPORTS = Object.freeze({
   soccer: Object.freeze({label:"Soccer",leagues:["mls","epl"]}),
   basketball: Object.freeze({label:"Basketball",leagues:["nba"]}),
   hockey: Object.freeze({label:"Hockey",leagues:["nhl"]}),
+  racing: Object.freeze({label:"Racing",leagues:["f1"]}),
   baseball: Object.freeze({label:"Baseball",leagues:["mlb"]})
 });
 const GG_LEAGUES = Object.freeze(Object.fromEntries([
@@ -11,6 +12,7 @@ const GG_LEAGUES = Object.freeze(Object.fromEntries([
   ["mls","soccer","MLS","soccer/usa.1","date",false],
   ["epl","soccer","Premier League","soccer/eng.1","date",false],
   ["nba","basketball","NBA","basketball/nba","date",false],
+  ["f1","racing","F1","racing/f1","date",false],
   ["nhl","hockey","NHL","hockey/nhl","date",false],
   ["mlb","baseball","MLB","baseball/mlb","date",false]
 ].map(([id,sport,label,espnPath,scheduleMode,enabled])=>[id,Object.freeze({
