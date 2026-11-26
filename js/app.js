@@ -2850,12 +2850,7 @@ let directvZip=localStorage.getItem(DIRECTV_ZIP_KEY)||"";
           const delta=Math.abs(after.height-before.height);
           // Read all final positions before writing animation styles.
           const positions=cards.map(el=>({el,old:first.get(el),next:el.getBoundingClientRect()}));
-          for(const {el,old,next} of positions){
-            if(el===card)continue;
-            const dy=old.top-next.top;
-            if(Math.abs(dy)<1||Math.max(old.bottom,next.bottom)<0||Math.min(old.top,next.top)>innerHeight)continue;
-            animations.push(el.animate([{transform:'translateY('+dy+'px)'},{transform:'translateY(0)'}],timing));
-          }
+          ggAnimateDisplacedCards(positions,card,innerHeight,timing,animations);
           if(opening&&delta>1){
             animations.push(card.animate([{clipPath:'inset(0 -12px '+delta+'px -12px round 12px)'},{clipPath:'inset(0 -12px -12px -12px round 12px)'}],timing));
             const handle=block.querySelector('summary');
