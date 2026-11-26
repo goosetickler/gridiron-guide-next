@@ -34,7 +34,10 @@ function ggSoccerProviders(game){
   const names=game.broadcasts||[],out=new Map();
   for(const name of names){
     let p=null;
-    if(/^(?:nba\s*)?tv$/i.test(name.trim()))p=["NBA TV","https://www.nba.com/watch"];
+    if(/^dazn\b/i.test(name.trim()))continue;
+    if(/^mymi$/i.test(name.trim()))continue;
+    if(/^suns live$/i.test(name.trim()))p=["Suns Live","https://www.nba.com/suns/sunslive"];
+    else if(/^(?:nba\s*)?tv$/i.test(name.trim()))p=["NBA TV","https://www.nba.com/watch"];
     else if(/fan\s*duel sports|\bfdsn\b|\bfds[nw][a-z]*\b/i.test(name))p=[name,"https://www.fanduelsportsnetwork.com/"];
     else if(/spectrum sportsnet/i.test(name))p=[name,"https://spectrumsportsnet.com/"];
     else if(/\bmsg\b|^msgsn/i.test(name))p=[name,"https://www.gothamsports.com/"];
@@ -49,7 +52,7 @@ function ggSoccerProviders(game){
     else if(/fox|\bfs[12]\b/i.test(name))p=[name,"https://www.foxsports.com/live"];
     else if(/espn\+/i.test(name))p=["ESPN+","https://www.espn.com/watch/"];
     if(p)out.set(p[0],{label:p[0],url:p[1]});
-    else if(game.leagueId==="nba"&&name.trim()&&!/^(tbd|none|n\/a)$/i.test(name.trim()))out.set(name,{label:name,url:"https://www.nba.com/watch",directory:true});
+    
   }return [...out.values()];
 }
 
