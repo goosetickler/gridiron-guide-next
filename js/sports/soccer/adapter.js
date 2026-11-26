@@ -6,7 +6,8 @@ function ggSoccerNormalize(raw,leagueId){
     const c=e.competitions?.[0],h=c?.competitors?.find(t=>t.homeAway==="home"),a=c?.competitors?.find(t=>t.homeAway==="away");
     if(!e.id||seen.has(String(e.id))||!h?.team||!a?.team)continue;
     const status=c.status||e.status||{},type=status.type||{};
-    const names=[...(c.broadcasts||[]).flatMap(b=>b.names||[b.name]),...(c.geoBroadcasts||[]).filter(b=>b.region==="us").map(b=>b.media?.shortName)].filter(Boolean);
+    const list=x=>Array.isArray(x)?x:[];
+    const names=[...list(c.broadcasts).flatMap(b=>list(b?.names).length?b.names:[b?.name||b?.shortName]),...list(c.geoBroadcasts).filter(b=>String(b?.region||b?.market?.type||"").toLowerCase()==="us").map(b=>b.media?.shortName)].filter(x=>typeof x==="string"&&x.trim());
     const broadcasts=[...new Set(names)];
     const g=ggNormalizeGame({id:String(e.id),dateTime:e.date||c.date,homeTeam:h.team.displayName||h.team.name,awayTeam:a.team.displayName||a.team.name,homeAbbr:h.team.abbreviation,awayAbbr:a.team.abbreviation,homeLogo:h.team.logo||h.team.logos?.[0]?.href||"",awayLogo:a.team.logo||a.team.logos?.[0]?.href||"",homeScore:h.score,awayScore:a.score,homePenaltyScore:h.shootoutScore,awayPenaltyScore:a.shootoutScore,status:type.state||"pre",statusName:type.name||"",statusDetail:type.shortDetail||type.description||"",clock:status.displayClock||"",network:broadcasts[0]||"TBD",broadcasts,venue:c.venue?.fullName||""},leagueId);
     if(g){seen.add(g.id);games.push(g)}
@@ -20,8 +21,14 @@ function ggSoccerDateRange(day){
 }
 async function ggSoccerFetch(leagueId,day,request=fetchJson){
   const league=GG_LEAGUES[leagueId];if(league?.sport!=="soccer")throw Error("Not a soccer league");
-  const raw=await request(league.scoreboard+"?dates="+ggSoccerDateRange(day)+"&limit=200");
-  return ggSoccerNormalize(raw,leagueId).filter(g=>ggLocalDateKey(g.dateTime)===day);
+  const range=ggSoccerDateRange(day),query="?dates="+range+"&limit=200";
+  const urls=[league.scoreboard+query,league.scoreboard.replace("site.api.espn.com","site.web.api.espn.com")+query,league.scoreboard+"?dates="+day.replace(/-/g,"")];
+  const errors=[];
+  for(const url of urls){
+    try{const raw=await request(url);if(!Array.isArray(raw?.events))throw Error("Invalid ESPN response: missing events");return ggSoccerNormalize(raw,leagueId).filter(g=>ggLocalDateKey(g.dateTime)===day);}
+    catch(e){errors.push(url.split("/")[2]+": "+(e?.message||String(e)));}
+  }
+  throw Error(errors.join(" | "));
 }
 function ggSoccerProviders(game){
   const names=game.broadcasts||[],out=new Map();
