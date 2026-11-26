@@ -1,0 +1,4184 @@
+
+    const DEVICE = detectDevice();
+    const APP_VERSION = "1.0.6";
+
+    // ------------------------------------------------------------
+    // DATA SOURCE OVERVIEW
+    // ------------------------------------------------------------
+    // This page is intentionally backend-free: all schedule data is pulled directly
+    // from the user's browser with fetch(). No server, API key, or database is used.
+    //
+    // Primary data source:
+    // ESPN's public NFL scoreboard JSON endpoint. It usually includes game date,
+    // teams, logos, score, status, clock, possession, timeouts, venue, and the
+    // broadcast network string exposed in competition.broadcasts.
+    //
+    // IMPORTANT LIMITATION:
+    // ESPN generally tells us the TV/network owner, not every streaming service
+    // carrying that game. The streaming buttons below are a best-effort mapping
+    // from network -> likely service options, and they are still subject to local
+    // market availability, blackout rules, active subscription, and provider login.
+    //
+    // Endpoint pattern used by this app:
+    // https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?limit=1000&dates=YYYY&seasontype=TYPE&week=WEEK
+    const ESPN_BASE = "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard";
+    const ESPN_SUMMARY_BASE = "https://site.web.api.espn.com/apis/site/v2/sports/football/nfl/summary";
+    const MAX_GAMES_TO_SHOW = 18;
+    const PROVIDER_PREF_KEY = "gridironGuide.enabledProviders.settings.v5";
+    const APP_DATA_VERSION = 21;
+    const APP_DATA_VERSION_KEY = "gridironGuide.appDataVersion";
+    const SEASON_CACHE_KEY="gridironGuide.seasonSchedule.v1";
+    const SEASON_CACHE_TTL_MS=12*60*60*1000;
+    const PREGAME_REFRESH_MS=5*60*1000;
+    const LIVE_REFRESH_MS=30*1000;
+    const STARTUP_BACKGROUND_DELAY_MS=350;
+    const RESUME_REFRESH_COOLDOWN_MS=2*60*1000;
+    const PREFERRED_PROVIDER_KEY = "gridironGuide.preferredProvider.v1";
+    const DIRECTV_ZIP_KEY="gridironGuide.directv.zip.v3";
+    const DIRECTV_MARKET_KEY="gridironGuide.directv.market.v1";
+    const DIRECTV_MARKET_SOURCE_KEY="gridironGuide.directv.marketSource.v1";
+    const DIRECTV_NFL_PACKAGE_KEY="gridironGuide.directv.nflPackage.v1";
+    const SUNDAY_TICKET_KEY="gridironGuide.sundayTicket.v1";
+    const FAVORITE_TEAMS_KEY="gridironGuide.favoriteTeams.v1";
+    const FOLLOWED_GAMES_KEY="gridironGuide.followedGames.v1";
+    const NFL_TEAMS = Object.freeze([
+      ["ARI","Arizona Cardinals"],["ATL","Atlanta Falcons"],["BAL","Baltimore Ravens"],["BUF","Buffalo Bills"],
+      ["CAR","Carolina Panthers"],["CHI","Chicago Bears"],["CIN","Cincinnati Bengals"],["CLE","Cleveland Browns"],
+      ["DAL","Dallas Cowboys"],["DEN","Denver Broncos"],["DET","Detroit Lions"],["GB","Green Bay Packers"],
+      ["HOU","Houston Texans"],["IND","Indianapolis Colts"],["JAX","Jacksonville Jaguars"],["KC","Kansas City Chiefs"],
+      ["LV","Las Vegas Raiders"],["LAC","Los Angeles Chargers"],["LAR","Los Angeles Rams"],["MIA","Miami Dolphins"],
+      ["MIN","Minnesota Vikings"],["NE","New England Patriots"],["NO","New Orleans Saints"],["NYG","New York Giants"],
+      ["NYJ","New York Jets"],["PHI","Philadelphia Eagles"],["PIT","Pittsburgh Steelers"],["SEA","Seattle Seahawks"],
+      ["SF","San Francisco 49ers"],["TB","Tampa Bay Buccaneers"],["TEN","Tennessee Titans"],["WSH","Washington Commanders"]
+    ].map(([id,name])=>Object.freeze({league:"NFL",id,name})));
+    const WEEKLY_COVERAGE_CACHE_KEY="gridironGuide.weeklyCoverage.v2";
+    const WEEKLY_COVERAGE_CACHE_TTL_MS=5*60*1000;
+    const WEEKLY_COVERAGE_FEED_URL="https://goosetickler.github.io/streamline-/local-coverage-2026.json";
+    // v4/v6 invalidate early-game snapshots incorrectly retained after a game ended.
+    const FANTASY_CACHE_PREFIX = "gridironGuide.realFantasy.v4.";
+    const LIVE_FANTASY_CACHE_TTL_MS = 90*1000;
+    const RECENT_FINAL_FANTASY_CACHE_TTL_MS = 10*60*1000;
+    const OLD_FINAL_FANTASY_CACHE_TTL_MS = 6*60*60*1000;
+    const fantasyLeaderRequests = new Map();
+    const WEEKLY_FANTASY_CACHE_PREFIX="gridironGuide.weeklyFantasyAll.v6.";
+    const weeklyFantasyRequests=new Map();
+    let resultsSubview=localStorage.getItem("gridironGuide.resultsSubview.v1")==="fantasy"?"fantasy":"games";
+    let resultsDivisionView=localStorage.getItem("gridironGuide.resultsDivisionView.v1")==="divisions"?"divisions":"weekly";
+    let resultsConferenceView=localStorage.getItem("gridironGuide.resultsConferenceView.v1")==="NFC"?"NFC":"AFC";
+    let divisionStandingsCache=null;
+    let divisionStandingsFetchedAt=0;
+    let weeklyFantasyPosition="ALL";
+    let weeklyFantasyMode="leaders";
+    const WAIVER_JSON_URL="https://goosetickler.github.io/streamline-/waivers.json";
+    const WAIVER_FALLBACK=JSON.parse(document.getElementById("waiverFallbackData")?.textContent||"{}");
+    let waiverData=WAIVER_FALLBACK;
+    let waiverLoadPromise=null;
+    let waiverLoadAttempted=false;
+    let waiverFeedError=false;
+    // Waiver recommendations are specific to a REGULAR-SEASON week. The JSON
+    // holds only published weeks, beginning with Week 10 in 2026. New weeks can
+    // be appended without copying old recommendations or changing this HTML.
+    function validWaiverPlayer(p){
+      return p&&typeof p.name==="string"&&typeof p.team==="string"&&
+        ["QB","RB","WR","TE","K"].includes(p.position)&&
+        (["High","Medium","Low"].includes(p.rostered)||["High","Medium","Low"].includes(p.availability))&&
+        (p.summary===undefined||(typeof p.summary==="string"&&p.summary.length<=700));
+    }
+    function validWaiverPayload(data){
+      return data&&Number(data.season)===2026&&data.weeks&&
+        typeof data.weeks==="object"&&!Array.isArray(data.weeks)&&
+        Object.keys(data.weeks).length>0&&
+        Object.entries(data.weeks).every(([week,entry])=>
+          /^(?:[1-9]|1[0-8])$/.test(week)&&entry&&Array.isArray(entry.players)&&
+          entry.players.every(validWaiverPlayer));
+    }
+    function selectedWaiverWeek(){
+      const [type,week]=String(selectedScheduleWeek||"").split(":").map(Number);
+      return type===2&&Number.isInteger(week)&&week>=1&&week<=18?week:null;
+    }
+    async function loadWaivers({force=false}={}){
+      if(waiverLoadPromise&&!force)return waiverLoadPromise;
+      const load=(async()=>{
+        try{
+          const separator=WAIVER_JSON_URL.includes("?")?"&":"?";
+          const response=await fetch(WAIVER_JSON_URL+separator+"v="+Date.now(),{cache:"no-store"});
+          if(!response.ok)throw new Error("Waiver file unavailable");
+          const payload=await response.json();
+          if(!validWaiverPayload(payload))throw new Error("Invalid waiver payload");
+          waiverData=payload;
+          waiverFeedError=false;
+        }catch(_err){
+          // Offline/native loads retain the embedded snapshot without claiming
+          // a published week is missing if the remote request failed.
+          waiverFeedError=true;
+        }
+        waiverLoadAttempted=true;
+        if(weeklyFantasyMode==="waivers")renderWeeklyFantasyPlayers();
+        return waiverData;
+      })();
+      waiverLoadPromise=load;
+      try{return await load;}finally{if(waiverLoadPromise===load)waiverLoadPromise=null;}
+    }
+    // Transitional compatibility for last week's JSON format.
+    function rosteredTier(p){
+      if(["Low","Medium","High"].includes(p.rostered))return p.rostered;
+      return ({High:"Low",Medium:"Medium",Low:"High"})[p.availability]||"Medium";
+    }
+    function renderWaivers(){
+      const content=document.querySelector("#weeklyFantasyContent");
+      if(!content||sortMode!=="final"||resultsSubview!=="fantasy")return;
+      const meta=document.getElementById("waiverModeMeta");
+      if(meta)meta.textContent="Rostered";
+      const week=selectedWaiverWeek();
+      const entry=week!==null&&validWaiverPayload(waiverData)?waiverData.weeks[String(week)]:null;
+      if(!entry){
+        const message=week===null?"Waiver picks are available for regular-season weeks only."
+          :week<10?"Waiver Wire starts in Week 10."
+          :!waiverLoadAttempted?`Checking for Week ${week} waiver picks…`
+          :waiverFeedError?"Unable to load the latest waiver list. Check your connection and tap Refresh."
+          :`No waiver picks published for Week ${week} yet.`;
+        content.innerHTML=`<div class="waiver-empty-state">${escapeHtml(message)}</div>`;
+        return;
+      }
+      const players=entry.players.filter(p=>weeklyFantasyPosition==="ALL"||p.position===weeklyFantasyPosition)
+        .slice().sort((a,b)=>Number(a.rank||999)-Number(b.rank||999)).slice(0,10);
+      content.innerHTML=players.length?players.map((p,index)=>{
+        const rank=Number(p.rank)||index+1;
+        return `<details class="waiver-entry" data-waiver-rank="${rank}">
+          <summary class="weekly-player waiver-player" aria-label="${escapeHtml(p.name)}. Show player quick take.">
+            <span class="weekly-rank">${index+1}</span>
+            <div class="weekly-player-info"><div class="weekly-player-name">${escapeHtml(p.name)}</div>
+              <div class="fantasy-player-meta"><span class="fantasy-team">${escapeHtml(p.team)}</span><span class="fantasy-tag">${escapeHtml(p.position)}</span></div></div>
+            <span class="waiver-trailing"><span class="weekly-player-points" data-rostered="${escapeHtml(rosteredTier(p))}" title="Estimated rostered level (not a measured percentage)">${escapeHtml(rosteredTier(p).toUpperCase())}</span>
+              <span class="waiver-expand-chevron" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="m3.5 6 4.5 4 4.5-4"/></svg></span></span>
+          </summary>
+          <div class="waiver-quick-take">
+            <span class="waiver-quick-label">Quick Take</span>
+            <p class="waiver-quick-copy">${escapeHtml(p.summary||"Player scouting note not yet published for this week.")}</p>
+          </div>
+        </details>`;
+      }).join(""):`<p class="weekly-progress">No ${escapeHtml(weeklyFantasyPosition)} picks in Week ${week}'s Top 10.</p>`;
+    }
+
+    const WEEKLY_SCORING_MODES=[{key:"ppr",label:"Full PPR",bonus:1},{key:"half",label:"Half PPR",bonus:0.5},{key:"standard",label:"Standard",bonus:0}];
+    let weeklyScoringMode=localStorage.getItem("gridironGuide.weeklyScoring.v1")||"ppr";
+    if(!WEEKLY_SCORING_MODES.some(mode=>mode.key===weeklyScoringMode))weeklyScoringMode="ppr";
+    let weeklyFantasyPlayers=[];
+    let weeklyFantasyLoaded=0;
+    let weeklyFantasyExpected=0;
+    let weeklyFantasyRenderToken=0;
+    const DEFAULT_ENABLED_PROVIDERS = ["youtubetv","hulu","paramount","directv","peacock","netflix","fox","espn","prime","nflplus"];
+
+    // Deep link notes:
+    // - Mobile launches are native-app-first; HTTPS is fallback only.
+    // - iOS tries the provider custom scheme, then its Universal Link/web URL.
+    // - Android uses an explicit package + native scheme intent with browser fallback.
+    // - Third-party providers control their schemes/app-link associations and may change them.
+    //
+    // Provider launch targets. These are SERVICE destinations, not broadcaster identities.
+    // Existing `label` values are retained for UI/backward compatibility.
+    // Each provider has:
+    // - label: readable button/title text
+    // - web: reliable browser fallback
+    // - ios: optional custom URL scheme. These can change and are not guaranteed.
+    // - androidPackage: app package used to build Android intent links with fallback.
+    const PROVIDER_LINKS = {
+      prime: {
+        label:"Prime Video",
+        web:"https://www.primevideo.com/sports",
+        iosUniversal:"https://www.primevideo.com/sports",
+        ios:"aiv://",
+        androidScheme:"aiv",
+        androidPackage:"com.amazon.avod.thirdpartyclient"
+      },
+      peacock: {
+        label:"Peacock",
+        web:"https://www.peacocktv.com/",
+        iosUniversal:"https://www.peacocktv.com/deeplink",
+        ios:"peacocktv://",
+        androidScheme:"peacocktv",
+        androidWeb:"https://www.peacocktv.com/deeplink",androidPackage:"com.peacocktv.peacockandroid"
+      },
+      espn: {
+        label:"ESPN / ABC",
+        web:"https://www.espn.com/",
+        iosUniversal:"https://www.espn.com/watch/",
+        ios:"espn://",
+        androidScheme:"espn",
+        androidWeb:"https://www.espn.com/watch/",androidPackage:"com.espn.score_center"
+      },
+      paramount: {
+        // Opens Paramount+ sports. Game availability can depend on the user's
+        // local CBS station, subscription tier, device, and market.
+        label:"CBS / Paramount+",
+        web:"https://www.paramountplus.com/shows/nfl-on-cbs/",
+        iosUniversal:"https://www.paramountplus.com/shows/nfl-on-cbs/",
+        ios:"paramountplus://",
+        androidScheme:"paramountplus",
+        androidPackage:"com.cbs.ca"
+      },
+      fox: {
+        label:"FOX",
+        web:"https://www.foxsports.com/live",
+        iosUniversal:"https://www.foxsports.com/live",
+        ios:"foxsports://",
+        androidScheme:"foxsports",
+        androidPackage:"com.foxsports.android"
+      },
+      hulu: {
+        label:"Hulu + Live TV",
+        web:"https://www.hulu.com/",
+        iosUniversal:"https://www.hulu.com/nfl",
+        ios:"hulu://",
+        androidScheme:"hulu",
+        androidPackage:"com.hulu.plus"
+      },
+      nflnetwork: {
+        label:"NFL Network",
+        web:"https://www.nfl.com/network/",
+        iosUniversal:"https://www.nfl.com/network/",
+        ios:"nfl://",
+        androidScheme:"nfl",
+        androidWeb:"https://www.nfl.com/",androidPackage:"com.gotv.nflgamecenter.us.lite"
+      },
+      nflplus: {
+        label:"NFL+",
+        web:"https://www.nfl.com/plus/",
+        iosUniversal:"https://www.nfl.com/plus/",
+        ios:"nfl://",
+        androidScheme:"nfl",
+        androidWeb:"https://www.nfl.com/plus/",androidPackage:"com.gotv.nflgamecenter.us.lite"
+      },
+      directv: {label:"DIRECTV",web:"https://www.directv.com/stream/",iosUniversal:"https://stream.directv.com/",ios:"directv://",androidScheme:"directv",androidPackage:"com.att.tv"},
+      netflix:{label:"Netflix",web:"https://www.netflix.com/",iosUniversal:"https://www.netflix.com/",ios:"nflx://",androidScheme:"nflx",androidPackage:"com.netflix.mediaclient"},
+      youtubetv: {
+        label:"YouTube TV",
+        web:"https://tv.youtube.com/",
+        iosUniversal:"https://tv.youtube.com/",
+        ios:"youtubetv://",
+        androidScheme:"youtubetv",
+        androidPackage:"com.google.android.apps.youtube.unplugged"
+      },
+      sundayticket: {
+        label:"NFL Sunday Ticket",
+        web:"https://tv.youtube.com/",
+        iosUniversal:"https://tv.youtube.com/",
+        ios:"youtubetv://",
+        androidScheme:"youtubetv",
+        androidPackage:"com.google.android.apps.youtube.unplugged"
+      }
+    };
+
+    // Single-provider fallback used by the large WATCH button.
+    // Multi-provider icons are handled by NETWORK_STREAM_MAP below.
+    const NETWORK_TO_PROVIDER = {
+      "prime video":"prime", "prime":"prime", "amazon":"prime",
+      "nbc":"peacock", "peacock":"peacock",
+      "espn":"espn", "abc":"espn",
+      "cbs":"paramount", "paramount":"paramount",
+      "fox":"fox",
+      "hulu":"hulu",
+      "nfl network":"nflnetwork", "nfln":"nflnetwork",
+      "youtube":"youtubetv"
+    };
+    // Multi-provider mapping.
+    // This does NOT prove a user can watch a specific game. It adds useful launch
+    // choices based on published provider/network relationships:
+    // - YouTube TV and Hulu + Live TV can carry local/national broadcast networks,
+    //   but local affiliate availability depends on ZIP code and blackout rules.
+    // - Paramount+ maps to NFL on CBS games.
+    // - FOX maps to games televised on FOX via FOX Sports / FOX One.
+    // - NFL+ is included as a mobile/local/primetime fallback where eligible.
+    // Release 1 provider distribution rules.
+    // NFL+ is intentionally limited to live local/primetime windows and NFL Network;
+    // it is NOT a general live option for Sunday-afternoon CBS/FOX games.
+    // Paramount+ is included as an inferred option for CBS, subject to the user's
+    // local CBS market availability.
+    const NETWORK_DISTRIBUTION = Object.freeze({
+      CBS: ["paramount","youtubetv","hulu"],
+      NBC: ["youtubetv","hulu","nflplus"],
+      FOX_NATIONAL: ["fox","youtubetv","hulu"],
+      FOX_REGIONAL: ["fox","youtubetv","hulu"],
+      FOX_LOCAL: ["youtubetv","hulu"],
+      ESPN: ["espn","youtubetv","hulu","nflplus"],
+      ABC: ["espn","youtubetv","hulu","nflplus"],
+      NFL_NETWORK: ["nflplus","youtubetv","hulu"],
+      PRIME: ["prime","nflplus"],
+      NETFLIX: ["netflix","nflplus"],
+      PEACOCK_EXCLUSIVE: ["peacock","nflplus"]
+    });
+
+    // Release 4.11: canonical broadcaster/provider metadata.
+    //
+    // IMPORTANT: this is intentionally a DATA-MODEL cleanup, not a filtering change.
+    // NETWORK_DISTRIBUTION above remains the single source of truth for which provider
+    // keys are initially associated with each classified broadcast window.
+    //
+    // "Broadcaster/network" describes the rights/window ESPN reports.
+    // "Provider/service" describes an app or subscription destination the user can open.
+    const BROADCAST_NETWORKS = Object.freeze({
+      CBS: Object.freeze({id:"CBS",label:"CBS",kind:"broadcast"}),
+      NBC: Object.freeze({id:"NBC",label:"NBC",kind:"broadcast"}),
+      FOX_NATIONAL: Object.freeze({id:"FOX_NATIONAL",label:"FOX",kind:"broadcast"}),
+      FOX_REGIONAL: Object.freeze({id:"FOX_REGIONAL",label:"FOX",kind:"broadcast"}),
+      FOX_LOCAL: Object.freeze({id:"FOX_LOCAL",label:"FOX",kind:"broadcast"}),
+      ESPN: Object.freeze({id:"ESPN",label:"ESPN",kind:"cable"}),
+      ABC: Object.freeze({id:"ABC",label:"ABC",kind:"broadcast"}),
+      NFL_NETWORK: Object.freeze({id:"NFL_NETWORK",label:"NFL Network",kind:"cable"}),
+      PRIME: Object.freeze({id:"PRIME",label:"Prime Video",kind:"streaming-exclusive"}),
+      NETFLIX: Object.freeze({id:"NETFLIX",label:"Netflix",kind:"streaming-exclusive"}),
+      PEACOCK_EXCLUSIVE: Object.freeze({id:"PEACOCK_EXCLUSIVE",label:"Peacock",kind:"streaming-exclusive"}),
+      UNKNOWN: Object.freeze({id:"UNKNOWN",label:"Unknown",kind:"unknown"})
+    });
+
+    function getBroadcastNetworkMeta(networkClass){
+      return BROADCAST_NETWORKS[networkClass] || BROADCAST_NETWORKS.UNKNOWN;
+    }
+
+    function getBroadcastContext(game){
+      const networkClass=classifyBroadcastNetwork(game);
+      const network=getBroadcastNetworkMeta(networkClass);
+      return {
+        networkClass,
+        network,
+        broadcasterLabel:network.label,
+        // Clone the existing array so callers cannot mutate the distribution table.
+        providers:[...(NETWORK_DISTRIBUTION[networkClass]||[])]
+      };
+    }
+
+    // Release 3.5: expanded static CBS/FOX affiliate directory for nationwide market recognition.
+    // CBS callsigns are cross-checked against CBS News' affiliate directory (updated Mar. 25, 2026).
+    // FOX callsigns are seeded from the maintained usa-local-epg local-affiliate list and are used
+    // only as market/affiliate evidence; weekly NFL station selection still must be proven separately.
+    const NATIONAL_LOCAL_AFFILIATES = [
+      {parent:'CBS',state:'AK',city:'Anchorage',callsign:'KYES'},
+      {parent:'CBS',state:'AK',city:'Fairbanks',callsign:'KXDF'},
+      {parent:'CBS',state:'AL',city:'Birmingham',callsign:'WIAT'},
+      {parent:'CBS',state:'AL',city:'Dothan',callsign:'WTVY'},
+      {parent:'CBS',state:'AL',city:'Huntsville',callsign:'WHNT'},
+      {parent:'CBS',state:'AL',city:'Mobile',callsign:'WKRG'},
+      {parent:'CBS',state:'AL',city:'Montgomery',callsign:'WAKA'},
+      {parent:'CBS',state:'AR',city:'Fort Smith',callsign:'KFSM'},
+      {parent:'CBS',state:'AR',city:'Little Rock',callsign:'KTHV'},
+      {parent:'CBS',state:'AZ',city:'Phoenix',callsign:'KPHO'},
+      {parent:'CBS',state:'AZ',city:'Tucson',callsign:'KOLD'},
+      {parent:'CBS',state:'AZ',city:'Yuma',callsign:'KYMA'},
+      {parent:'CBS',state:'CA',city:'Bakersfield',callsign:'KBAK'},
+      {parent:'CBS',state:'CA',city:'Chico',callsign:'KHSL'},
+      {parent:'CBS',state:'CA',city:'Eureka',callsign:'KVIQ'},
+      {parent:'CBS',state:'CA',city:'Fresno',callsign:'KGPE'},
+      {parent:'CBS',state:'CA',city:'Los Angeles',callsign:'KCBS'},
+      {parent:'CBS',state:'CA',city:'Monterey',callsign:'KION'},
+      {parent:'CBS',state:'CA',city:'Palm Springs',callsign:'KPSP'},
+      {parent:'CBS',state:'CA',city:'Sacramento',callsign:'KOVR'},
+      {parent:'CBS',state:'CA',city:'San Diego',callsign:'KFMB'},
+      {parent:'CBS',state:'CA',city:'San Francisco',callsign:'KPIX'},
+      {parent:'CBS',state:'CA',city:'Santa Barbara',callsign:'KEYT'},
+      {parent:'CBS',state:'CO',city:'Colorado Springs',callsign:'KKTV'},
+      {parent:'CBS',state:'CO',city:'Denver',callsign:'KCNC'},
+      {parent:'CBS',state:'CO',city:'Grand Junction',callsign:'KREX'},
+      {parent:'CBS',state:'CT',city:'Hartford',callsign:'WFSB'},
+      {parent:'CBS',state:'DC',city:'Washington',callsign:'WUSA'},
+      {parent:'CBS',state:'FL',city:'Fort Myers',callsign:'WINK'},
+      {parent:'CBS',state:'FL',city:'Gainesville',callsign:'WGFL'},
+      {parent:'CBS',state:'FL',city:'Jacksonville',callsign:'WJAX'},
+      {parent:'CBS',state:'FL',city:'Miami',callsign:'WFOR'},
+      {parent:'CBS',state:'FL',city:'Orlando',callsign:'WKMG'},
+      {parent:'CBS',state:'FL',city:'Panama City',callsign:'WECP'},
+      {parent:'CBS',state:'FL',city:'Tallahassee',callsign:'WCTV'},
+      {parent:'CBS',state:'FL',city:'Tampa',callsign:'WTSP'},
+      {parent:'CBS',state:'FL',city:'West Palm Beach',callsign:'WPEC'},
+      {parent:'CBS',state:'GA',city:'Albany',callsign:'WSWG'},
+      {parent:'CBS',state:'GA',city:'Atlanta',callsign:'WUPA'},
+      {parent:'CBS',state:'GA',city:'Augusta',callsign:'WRDW'},
+      {parent:'CBS',state:'GA',city:'Columbus',callsign:'WRBL'},
+      {parent:'CBS',state:'GA',city:'Macon',callsign:'WMAZ'},
+      {parent:'CBS',state:'GA',city:'Savannah',callsign:'WTOC'},
+      {parent:'CBS',state:'HI',city:'Honolulu',callsign:'KGMB'},
+      {parent:'CBS',state:'IA',city:'Cedar Rapids',callsign:'KGAN'},
+      {parent:'CBS',state:'IA',city:'Davenport',callsign:'WHBF'},
+      {parent:'CBS',state:'IA',city:'Des Moines',callsign:'KCCI'},
+      {parent:'CBS',state:'IA',city:'Ottumwa',callsign:'KTVO'},
+      {parent:'CBS',state:'IA',city:'Sioux City',callsign:'KPTH'},
+      {parent:'CBS',state:'ID',city:'Boise',callsign:'KBOI'},
+      {parent:'CBS',state:'ID',city:'Idaho Falls',callsign:'KIFI'},
+      {parent:'CBS',state:'ID',city:'Lewiston',callsign:'KLEW'},
+      {parent:'CBS',state:'ID',city:'Twin Falls',callsign:'KMVT'},
+      {parent:'CBS',state:'IL',city:'Champaign',callsign:'WCIA'},
+      {parent:'CBS',state:'IL',city:'Chicago',callsign:'WBBM'},
+      {parent:'CBS',state:'IL',city:'Peoria',callsign:'WMBD'},
+      {parent:'CBS',state:'IL',city:'Quincy',callsign:'KHQA'},
+      {parent:'CBS',state:'IL',city:'Rockford',callsign:'WIFR'},
+      {parent:'CBS',state:'IN',city:'Evansville',callsign:'WEVV'},
+      {parent:'CBS',state:'IN',city:'Fort Wayne',callsign:'WANE'},
+      {parent:'CBS',state:'IN',city:'Indianapolis',callsign:'WTTV'},
+      {parent:'CBS',state:'IN',city:'Lafayette',callsign:'WLFI'},
+      {parent:'CBS',state:'IN',city:'South Bend',callsign:'WSBT'},
+      {parent:'CBS',state:'IN',city:'Terre Haute',callsign:'WTHI'},
+      {parent:'CBS',state:'KS',city:'Topeka',callsign:'WIBW'},
+      {parent:'CBS',state:'KS',city:'Wichita',callsign:'KWCH'},
+      {parent:'CBS',state:'KY',city:'Bowling Green',callsign:'WNKY'},
+      {parent:'CBS',state:'KY',city:'Lexington',callsign:'WKYT'},
+      {parent:'CBS',state:'KY',city:'Louisville',callsign:'WLKY'},
+      {parent:'CBS',state:'LA',city:'Baton Rouge',callsign:'WAFB'},
+      {parent:'CBS',state:'LA',city:'Lafayette',callsign:'KLFY'},
+      {parent:'CBS',state:'LA',city:'Monroe',callsign:'KNOE'},
+      {parent:'CBS',state:'LA',city:'New Orleans',callsign:'WWL'},
+      {parent:'CBS',state:'LA',city:'Shreveport',callsign:'KSLA'},
+      {parent:'CBS',state:'MA',city:'Boston',callsign:'WBZ'},
+      {parent:'CBS',state:'MA',city:'Springfield',callsign:'WSHM'},
+      {parent:'CBS',state:'MD',city:'Baltimore',callsign:'WJZ'},
+      {parent:'CBS',state:'MD',city:'Salisbury',callsign:'WBOC'},
+      {parent:'CBS',state:'ME',city:'Bangor',callsign:'WABI'},
+      {parent:'CBS',state:'ME',city:'Portland',callsign:'WGME'},
+      {parent:'CBS',state:'ME',city:'Presque Isle',callsign:'WAGM'},
+      {parent:'CBS',state:'MI',city:'Alpena',callsign:'WBKB'},
+      {parent:'CBS',state:'MI',city:'Detroit',callsign:'WWJ'},
+      {parent:'CBS',state:'MI',city:'Grand Rapids',callsign:'WWMT'},
+      {parent:'CBS',state:'MI',city:'Lansing',callsign:'WLNS'},
+      {parent:'CBS',state:'MI',city:'Marquette',callsign:'WZMQ'},
+      {parent:'CBS',state:'MI',city:'Traverse City',callsign:'WWTV'},
+      {parent:'CBS',state:'MN',city:'Duluth',callsign:'KBJR'},
+      {parent:'CBS',state:'MN',city:'Mankato',callsign:'KEYC'},
+      {parent:'CBS',state:'MN',city:'Minneapolis',callsign:'WCCO'},
+      {parent:'CBS',state:'MN',city:'Rochester',callsign:'KIMT'},
+      {parent:'CBS',state:'MO',city:'Columbia',callsign:'KRCG'},
+      {parent:'CBS',state:'MO',city:'Joplin',callsign:'KOAM'},
+      {parent:'CBS',state:'MO',city:'Kansas City',callsign:'KCTV'},
+      {parent:'CBS',state:'MO',city:'Springfield',callsign:'KOLR'},
+      {parent:'CBS',state:'MO',city:'St Joseph',callsign:'KCJO'},
+      {parent:'CBS',state:'MO',city:'St Louis',callsign:'KMOV'},
+      {parent:'CBS',state:'MS',city:'Biloxi',callsign:'WLOX'},
+      {parent:'CBS',state:'MS',city:'Columbus',callsign:'WCBI'},
+      {parent:'CBS',state:'MS',city:'Greenwood',callsign:'WXVT'},
+      {parent:'CBS',state:'MS',city:'Hattiesburg',callsign:'WHLT'},
+      {parent:'CBS',state:'MS',city:'Jackson',callsign:'WJTV'},
+      {parent:'CBS',state:'MS',city:'Meridian',callsign:'WMDN'},
+      {parent:'CBS',state:'MT',city:'Billings',callsign:'KTVQ'},
+      {parent:'CBS',state:'MT',city:'Butte',callsign:'KXLF'},
+      {parent:'CBS',state:'MT',city:'Great Falls',callsign:'KRTV'},
+      {parent:'CBS',state:'MT',city:'Helena',callsign:'KXLH'},
+      {parent:'CBS',state:'MT',city:'Missoula',callsign:'KPAX'},
+      {parent:'CBS',state:'NC',city:'Charlotte',callsign:'WBTV'},
+      {parent:'CBS',state:'NC',city:'Greensboro',callsign:'WFMY'},
+      {parent:'CBS',state:'NC',city:'Greenville',callsign:'WNCT'},
+      {parent:'CBS',state:'NC',city:'Raleigh',callsign:'WNCN'},
+      {parent:'CBS',state:'NC',city:'Wilmington',callsign:'WWAY'},
+      {parent:'CBS',state:'ND',city:'Fargo',callsign:'KXJB'},
+      {parent:'CBS',state:'ND',city:'Minot',callsign:'KXMC'},
+      {parent:'CBS',state:'NE',city:'Lincoln',callsign:'KOLN'},
+      {parent:'CBS',state:'NE',city:'North Platte',callsign:'KNPL'},
+      {parent:'CBS',state:'NE',city:'Omaha',callsign:'KMTV'},
+      {parent:'CBS',state:'NM',city:'Albuquerque',callsign:'KRQE'},
+      {parent:'CBS',state:'NV',city:'Las Vegas',callsign:'KLAS'},
+      {parent:'CBS',state:'NV',city:'Reno',callsign:'KTVN'},
+      {parent:'CBS',state:'NY',city:'Albany',callsign:'WRGB'},
+      {parent:'CBS',state:'NY',city:'Binghamton',callsign:'WBNG'},
+      {parent:'CBS',state:'NY',city:'Buffalo',callsign:'WIVB'},
+      {parent:'CBS',state:'NY',city:'Elmira',callsign:'WENY'},
+      {parent:'CBS',state:'NY',city:'New York',callsign:'WCBS'},
+      {parent:'CBS',state:'NY',city:'Rochester',callsign:'WROC'},
+      {parent:'CBS',state:'NY',city:'Syracuse',callsign:'WKOF'},
+      {parent:'CBS',state:'NY',city:'Utica',callsign:'WKTV'},
+      {parent:'CBS',state:'NY',city:'Watertown',callsign:'WWNY'},
+      {parent:'CBS',state:'OH',city:'Cincinnati',callsign:'WKRC'},
+      {parent:'CBS',state:'OH',city:'Cleveland',callsign:'WOIO'},
+      {parent:'CBS',state:'OH',city:'Columbus',callsign:'WBNS'},
+      {parent:'CBS',state:'OH',city:'Dayton',callsign:'WHIO'},
+      {parent:'CBS',state:'OH',city:'Lima',callsign:'WOHL'},
+      {parent:'CBS',state:'OH',city:'Toledo',callsign:'WTOL'},
+      {parent:'CBS',state:'OH',city:'Youngstown',callsign:'WKBN'},
+      {parent:'CBS',state:'OK',city:'Oklahoma City',callsign:'KWTV'},
+      {parent:'CBS',state:'OK',city:'Tulsa',callsign:'KOTV'},
+      {parent:'CBS',state:'OR',city:'Bend',callsign:'KBNZ'},
+      {parent:'CBS',state:'OR',city:'Eugene',callsign:'KVAL'},
+      {parent:'CBS',state:'OR',city:'Medford',callsign:'KTVL'},
+      {parent:'CBS',state:'OR',city:'Portland',callsign:'KOIN'},
+      {parent:'CBS',state:'PA',city:'Erie',callsign:'WSEE'},
+      {parent:'CBS',state:'PA',city:'Harrisburg',callsign:'WHP'},
+      {parent:'CBS',state:'PA',city:'Johnstown',callsign:'WTAJ'},
+      {parent:'CBS',state:'PA',city:'Philadelphia',callsign:'KYW'},
+      {parent:'CBS',state:'PA',city:'Pittsburgh',callsign:'KDKA'},
+      {parent:'CBS',state:'PA',city:'Wilkes Barre',callsign:'WYOU'},
+      {parent:'CBS',state:'RI',city:'Providence',callsign:'WPRI'},
+      {parent:'CBS',state:'SC',city:'Charleston',callsign:'WCSC'},
+      {parent:'CBS',state:'SC',city:'Columbia',callsign:'WLTX'},
+      {parent:'CBS',state:'SC',city:'Greenville',callsign:'WSPA'},
+      {parent:'CBS',state:'SC',city:'Myrtle Beach',callsign:'WBTW'},
+      {parent:'CBS',state:'SD',city:'Rapid City',callsign:'KCLO'},
+      {parent:'CBS',state:'SD',city:'Sioux Falls',callsign:'KELO'},
+      {parent:'CBS',state:'TN',city:'Chattanooga',callsign:'WDEF'},
+      {parent:'CBS',state:'TN',city:'Knoxville',callsign:'WVLT'},
+      {parent:'CBS',state:'TN',city:'Memphis',callsign:'WREG'},
+      {parent:'CBS',state:'TN',city:'Nashville',callsign:'WTVF'},
+      {parent:'CBS',state:'TN',city:'Tri Cities',callsign:'WJHL'},
+      {parent:'CBS',state:'TX',city:'Abilene',callsign:'KTAB'},
+      {parent:'CBS',state:'TX',city:'Amarillo',callsign:'KFDA'},
+      {parent:'CBS',state:'TX',city:'Austin',callsign:'KEYE'},
+      {parent:'CBS',state:'TX',city:'Beaumont',callsign:'KFDM'},
+      {parent:'CBS',state:'TX',city:'Corpus Christi',callsign:'KZTV'},
+      {parent:'CBS',state:'TX',city:'Dallas',callsign:'KTVT'},
+      {parent:'CBS',state:'TX',city:'El Paso',callsign:'KDBC'},
+      {parent:'CBS',state:'TX',city:'Harlingen',callsign:'KVEO'},
+      {parent:'CBS',state:'TX',city:'Houston',callsign:'KHOU'},
+      {parent:'CBS',state:'TX',city:'Lubbock',callsign:'KLBK'},
+      {parent:'CBS',state:'TX',city:'Odessa',callsign:'KOSA'},
+      {parent:'CBS',state:'TX',city:'San Angelo',callsign:'KLST'},
+      {parent:'CBS',state:'TX',city:'San Antonio',callsign:'KENS'},
+      {parent:'CBS',state:'TX',city:'Sherman',callsign:'KXII'},
+      {parent:'CBS',state:'TX',city:'Tyler',callsign:'KYTX'},
+      {parent:'CBS',state:'TX',city:'Waco',callsign:'KWTX'},
+      {parent:'CBS',state:'TX',city:'Wichita Falls',callsign:'KAUZ'},
+      {parent:'CBS',state:'UT',city:'Salt Lake City',callsign:'KUTV'},
+      {parent:'CBS',state:'VT',city:'Burlington',callsign:'WCAX'},
+      {parent:'CBS',state:'VA',city:'Charlottesville',callsign:'WCAV'},
+      {parent:'CBS',state:'VA',city:'Norfolk',callsign:'WTKR'},
+      {parent:'CBS',state:'VA',city:'Richmond',callsign:'WTVR'},
+      {parent:'CBS',state:'VA',city:'Roanoke',callsign:'WDBJ'},
+      {parent:'CBS',state:'WA',city:'Seattle',callsign:'KIRO'},
+      {parent:'CBS',state:'WA',city:'Spokane',callsign:'KREM'},
+      {parent:'CBS',state:'WA',city:'Yakima',callsign:'KIMA'},
+      {parent:'CBS',state:'WI',city:'Green Bay',callsign:'WFRV'},
+      {parent:'CBS',state:'WI',city:'La Crosse',callsign:'WKBT'},
+      {parent:'CBS',state:'WI',city:'Madison',callsign:'WISC'},
+      {parent:'CBS',state:'WI',city:'Milwaukee',callsign:'WDJT'},
+      {parent:'CBS',state:'WI',city:'Wausau',callsign:'WSAW'},
+      {parent:'CBS',state:'WV',city:'Charleston',callsign:'WOWK'},
+      {parent:'CBS',state:'WV',city:'Clarksburg',callsign:'WDTV'},
+      {parent:'CBS',state:'WV',city:'Wheeling',callsign:'WTRF'},
+      {parent:'CBS',state:'WY',city:'Cheyenne',callsign:'KGWN'},
+      {parent:'FOX_LOCAL',state:'AK',city:'Anchorage',callsign:'KTBY'},
+      {parent:'FOX_LOCAL',state:'AK',city:'Fairbanks',callsign:'KATN'},
+      {parent:'FOX_LOCAL',state:'AL',city:'Birmingham',callsign:'WBRC'},
+      {parent:'FOX_LOCAL',state:'AL',city:'Dothan',callsign:'WDFX'},
+      {parent:'FOX_LOCAL',state:'AL',city:'Huntsville',callsign:'WZDX'},
+      {parent:'FOX_LOCAL',state:'AL',city:'Mobile',callsign:'WALA'},
+      {parent:'FOX_LOCAL',state:'AL',city:'Montgomery',callsign:'WCOV'},
+      {parent:'FOX_LOCAL',state:'AR',city:'Fort Smith',callsign:'KFTA'},
+      {parent:'FOX_LOCAL',state:'AR',city:'Jonesboro',callsign:'KJNB'},
+      {parent:'FOX_LOCAL',state:'AR',city:'Little Rock',callsign:'KLRT'},
+      {parent:'FOX_LOCAL',state:'AZ',city:'Phoenix',callsign:'KSAZ'},
+      {parent:'FOX_LOCAL',state:'AZ',city:'Tucson',callsign:'KMSB'},
+      {parent:'FOX_LOCAL',state:'AZ',city:'Yuma',callsign:'KECY'},
+      {parent:'FOX_LOCAL',state:'CA',city:'Bakersfield',callsign:'KBFX'},
+      {parent:'FOX_LOCAL',state:'CA',city:'Chico',callsign:'KCVU'},
+      {parent:'FOX_LOCAL',state:'CA',city:'Eureka',callsign:'KBVU'},
+      {parent:'FOX_LOCAL',state:'CA',city:'Fresno',callsign:'KMPH'},
+      {parent:'FOX_LOCAL',state:'CA',city:'Los Angeles',callsign:'KTTV'},
+      {parent:'FOX_LOCAL',state:'CA',city:'Monterey',callsign:'KCBA'},
+      {parent:'FOX_LOCAL',state:'CA',city:'Palm Springs',callsign:'KDFX'},
+      {parent:'FOX_LOCAL',state:'CA',city:'Sacramento',callsign:'KTXL'},
+      {parent:'FOX_LOCAL',state:'CA',city:'San Diego',callsign:'KSWB'},
+      {parent:'FOX_LOCAL',state:'CA',city:'San Francisco',callsign:'KTVU'},
+      {parent:'FOX_LOCAL',state:'CA',city:'Santa Barbara',callsign:'KKFX'},
+      {parent:'FOX_LOCAL',state:'CO',city:'Colorado Springs',callsign:'KXRM'},
+      {parent:'FOX_LOCAL',state:'CO',city:'Denver',callsign:'KDVR'},
+      {parent:'FOX_LOCAL',state:'CO',city:'Grand Junction',callsign:'KFQX'},
+      {parent:'FOX_LOCAL',state:'CT',city:'Hartford',callsign:'WTIC'},
+      {parent:'FOX_LOCAL',state:'DC',city:'Washington',callsign:'WTTG'},
+      {parent:'FOX_LOCAL',state:'FL',city:'Fort Myers',callsign:'WFTX'},
+      {parent:'FOX_LOCAL',state:'FL',city:'Gainesville',callsign:'WOGX'},
+      {parent:'FOX_LOCAL',state:'FL',city:'Jacksonville',callsign:'WFOX'},
+      {parent:'FOX_LOCAL',state:'FL',city:'Miami',callsign:'WSVN'},
+      {parent:'FOX_LOCAL',state:'FL',city:'Orlando',callsign:'WOFL'},
+      {parent:'FOX_LOCAL',state:'FL',city:'Panama City',callsign:'WPGX'},
+      {parent:'FOX_LOCAL',state:'FL',city:'Tallahassee',callsign:'WTWC'},
+      {parent:'FOX_LOCAL',state:'FL',city:'Tampa',callsign:'WTVT'},
+      {parent:'FOX_LOCAL',state:'FL',city:'West Palm Beach',callsign:'WFLX'},
+      {parent:'FOX_LOCAL',state:'GA',city:'Albany',callsign:'WFXL'},
+      {parent:'FOX_LOCAL',state:'GA',city:'Atlanta',callsign:'WAGA'},
+      {parent:'FOX_LOCAL',state:'GA',city:'Augusta',callsign:'WFXG'},
+      {parent:'FOX_LOCAL',state:'GA',city:'Columbus',callsign:'WXTX'},
+      {parent:'FOX_LOCAL',state:'GA',city:'Macon',callsign:'WGXA'},
+      {parent:'FOX_LOCAL',state:'GA',city:'Savannah',callsign:'WTGS'},
+      {parent:'FOX_LOCAL',state:'HI',city:'Honolulu',callsign:'KHON'},
+      {parent:'FOX_LOCAL',state:'IA',city:'Cedar Rapids',callsign:'KFXA'},
+      {parent:'FOX_LOCAL',state:'IA',city:'Davenport',callsign:'KLJB'},
+      {parent:'FOX_LOCAL',state:'IA',city:'Des Moines',callsign:'KDSM'},
+      {parent:'FOX_LOCAL',state:'IA',city:'Ottumwa',callsign:'KYOU'},
+      {parent:'FOX_LOCAL',state:'IA',city:'Sioux City',callsign:'KPTH'},
+      {parent:'FOX_LOCAL',state:'ID',city:'Boise',callsign:'KNIN'},
+      {parent:'FOX_LOCAL',state:'ID',city:'Idaho Falls',callsign:'KXPI'},
+      {parent:'FOX_LOCAL',state:'ID',city:'Twin Falls',callsign:'KSVT'},
+      {parent:'FOX_LOCAL',state:'IL',city:'Champaign',callsign:'WCCU'},
+      {parent:'FOX_LOCAL',state:'IL',city:'Chicago',callsign:'WFLD'},
+      {parent:'FOX_LOCAL',state:'IL',city:'Peoria',callsign:'WYZZ'},
+      {parent:'FOX_LOCAL',state:'IL',city:'Quincy',callsign:'WGEM'},
+      {parent:'FOX_LOCAL',state:'IL',city:'Rockford',callsign:'WQRF'},
+      {parent:'FOX_LOCAL',state:'IL',city:'Springfield',callsign:'WRSP'},
+      {parent:'FOX_LOCAL',state:'IN',city:'Evansville',callsign:'WEVV'},
+      {parent:'FOX_LOCAL',state:'IN',city:'Fort Wayne',callsign:'WFFT'},
+      {parent:'FOX_LOCAL',state:'IN',city:'Indianapolis',callsign:'WXIN'},
+      {parent:'FOX_LOCAL',state:'IN',city:'Lafayette',callsign:'WPBI'},
+      {parent:'FOX_LOCAL',state:'IN',city:'South Bend',callsign:'WSBT'},
+      {parent:'FOX_LOCAL',state:'IN',city:'Terre Haute',callsign:'WTHI'},
+      {parent:'FOX_LOCAL',state:'KS',city:'Topeka',callsign:'KTMJ'},
+      {parent:'FOX_LOCAL',state:'KS',city:'Wichita',callsign:'KSAS'},
+      {parent:'FOX_LOCAL',state:'KY',city:'Bowling Green',callsign:'WBKO'},
+      {parent:'FOX_LOCAL',state:'KY',city:'Lexington',callsign:'WDKY'},
+      {parent:'FOX_LOCAL',state:'KY',city:'Louisville',callsign:'WDRB'},
+      {parent:'FOX_LOCAL',state:'LA',city:'Baton Rouge',callsign:'WGMB'},
+      {parent:'FOX_LOCAL',state:'LA',city:'Lafayette',callsign:'KADN'},
+      {parent:'FOX_LOCAL',state:'LA',city:'Monroe',callsign:'KARD'},
+      {parent:'FOX_LOCAL',state:'LA',city:'New Orleans',callsign:'WVUE'},
+      {parent:'FOX_LOCAL',state:'LA',city:'Shreveport',callsign:'KMSS'},
+      {parent:'FOX_LOCAL',state:'MA',city:'Boston',callsign:'WFXT'},
+      {parent:'FOX_LOCAL',state:'MA',city:'Springfield',callsign:'WGGB'},
+      {parent:'FOX_LOCAL',state:'MD',city:'Baltimore',callsign:'WBFF'},
+      {parent:'FOX_LOCAL',state:'MD',city:'Salisbury',callsign:'WBOC'},
+      {parent:'FOX_LOCAL',state:'ME',city:'Bangor',callsign:'WFVX'},
+      {parent:'FOX_LOCAL',state:'ME',city:'Portland',callsign:'WPFO'},
+      {parent:'FOX_LOCAL',state:'ME',city:'Presque Isle',callsign:'WAGM'},
+      {parent:'FOX_LOCAL',state:'MI',city:'Alpena',callsign:'WBKB'},
+      {parent:'FOX_LOCAL',state:'MI',city:'Detroit',callsign:'WJBK'},
+      {parent:'FOX_LOCAL',state:'MI',city:'Flint',callsign:'WSMH'},
+      {parent:'FOX_LOCAL',state:'MI',city:'Grand Rapids',callsign:'WXMI'},
+      {parent:'FOX_LOCAL',state:'MI',city:'Lansing',callsign:'WSYM'},
+      {parent:'FOX_LOCAL',state:'MI',city:'Marquette',callsign:'WLUC'},
+      {parent:'FOX_LOCAL',state:'MI',city:'Traverse City',callsign:'WFQX'},
+      {parent:'FOX_LOCAL',state:'MN',city:'Duluth',callsign:'KQDS'},
+      {parent:'FOX_LOCAL',state:'MN',city:'Mankato',callsign:'KEYC'},
+      {parent:'FOX_LOCAL',state:'MN',city:'Minneapolis',callsign:'KMSP'},
+      {parent:'FOX_LOCAL',state:'MN',city:'Rochester',callsign:'KXLT'},
+      {parent:'FOX_LOCAL',state:'MO',city:'Columbia',callsign:'KQFX'},
+      {parent:'FOX_LOCAL',state:'MO',city:'Joplin',callsign:'KFJX'},
+      {parent:'FOX_LOCAL',state:'MO',city:'Kansas City',callsign:'WDAF'},
+      {parent:'FOX_LOCAL',state:'MO',city:'Springfield',callsign:'KRBK'},
+      {parent:'FOX_LOCAL',state:'MO',city:'St Joseph',callsign:'KNPN'},
+      {parent:'FOX_LOCAL',state:'MO',city:'St Louis',callsign:'KTVI'},
+      {parent:'FOX_LOCAL',state:'MS',city:'Biloxi',callsign:'WXXV'},
+      {parent:'FOX_LOCAL',state:'MS',city:'Columbus',callsign:'WLOV'},
+      {parent:'FOX_LOCAL',state:'MS',city:'Greenwood',callsign:'WABG'},
+      {parent:'FOX_LOCAL',state:'MS',city:'Hattiesburg',callsign:'WHPM'},
+      {parent:'FOX_LOCAL',state:'MS',city:'Jackson',callsign:'WDBD'},
+      {parent:'FOX_LOCAL',state:'MS',city:'Meridian',callsign:'WGBC'},
+      {parent:'FOX_LOCAL',state:'MT',city:'Billings',callsign:'KHMT'},
+      {parent:'FOX_LOCAL',state:'MT',city:'Butte',callsign:'KWYB'},
+      {parent:'FOX_LOCAL',state:'MT',city:'Great Falls',callsign:'KFBB'},
+      {parent:'FOX_LOCAL',state:'MT',city:'Helena',callsign:'KHBB'},
+      {parent:'FOX_LOCAL',state:'MT',city:'Missoula',callsign:'KTMF'},
+      {parent:'FOX_LOCAL',state:'NC',city:'Charlotte',callsign:'WJZY'},
+      {parent:'FOX_LOCAL',state:'NC',city:'Greensboro',callsign:'WGHP'},
+      {parent:'FOX_LOCAL',state:'NC',city:'Greenville',callsign:'WYDO'},
+      {parent:'FOX_LOCAL',state:'NC',city:'Raleigh',callsign:'WRAZ'},
+      {parent:'FOX_LOCAL',state:'NC',city:'Wilmington',callsign:'WSFX'},
+      {parent:'FOX_LOCAL',state:'ND',city:'Fargo',callsign:'KVRR'},
+      {parent:'FOX_LOCAL',state:'ND',city:'Minot',callsign:'KFYR'},
+      {parent:'FOX_LOCAL',state:'NE',city:'Lincoln',callsign:'KFXL'},
+      {parent:'FOX_LOCAL',state:'NE',city:'North Platte',callsign:'KIIT'},
+      {parent:'FOX_LOCAL',state:'NE',city:'Omaha',callsign:'KPTM'},
+      {parent:'FOX_LOCAL',state:'NM',city:'Albuquerque',callsign:'KRQE'},
+      {parent:'FOX_LOCAL',state:'NV',city:'Las Vegas',callsign:'KVVU'},
+      {parent:'FOX_LOCAL',state:'NV',city:'Reno',callsign:'KRXI'},
+      {parent:'FOX_LOCAL',state:'NY',city:'Albany',callsign:'WXXA'},
+      {parent:'FOX_LOCAL',state:'NY',city:'Binghamton',callsign:'WICZ'},
+      {parent:'FOX_LOCAL',state:'NY',city:'Buffalo',callsign:'WUTV'},
+      {parent:'FOX_LOCAL',state:'NY',city:'Elmira',callsign:'WYDC'},
+      {parent:'FOX_LOCAL',state:'NY',city:'New York',callsign:'WNYW'},
+      {parent:'FOX_LOCAL',state:'NY',city:'Rochester',callsign:'WUHF'},
+      {parent:'FOX_LOCAL',state:'NY',city:'Syracuse',callsign:'WSYT'},
+      {parent:'FOX_LOCAL',state:'NY',city:'Utica',callsign:'WFXV'},
+      {parent:'FOX_LOCAL',state:'NY',city:'Watertown',callsign:'WNYF'},
+      {parent:'FOX_LOCAL',state:'OH',city:'Cincinnati',callsign:'WXIX'},
+      {parent:'FOX_LOCAL',state:'OH',city:'Cleveland',callsign:'WJW'},
+      {parent:'FOX_LOCAL',state:'OH',city:'Columbus',callsign:'WTTE'},
+      {parent:'FOX_LOCAL',state:'OH',city:'Dayton',callsign:'WRGT'},
+      {parent:'FOX_LOCAL',state:'OH',city:'Lima',callsign:'WLIO'},
+      {parent:'FOX_LOCAL',state:'OH',city:'Toledo',callsign:'WUPW'},
+      {parent:'FOX_LOCAL',state:'OH',city:'Youngstown',callsign:'WYFX'},
+      {parent:'FOX_LOCAL',state:'OK',city:'Oklahoma City',callsign:'KOKH'},
+      {parent:'FOX_LOCAL',state:'OK',city:'Tulsa',callsign:'KOKI'},
+      {parent:'FOX_LOCAL',state:'OR',city:'Bend',callsign:'KFXO'},
+      {parent:'FOX_LOCAL',state:'OR',city:'Eugene',callsign:'KLSR'},
+      {parent:'FOX_LOCAL',state:'OR',city:'Medford',callsign:'KMVU'},
+      {parent:'FOX_LOCAL',state:'OR',city:'Portland',callsign:'KPTV'},
+      {parent:'FOX_LOCAL',state:'PA',city:'Erie',callsign:'WFXP'},
+      {parent:'FOX_LOCAL',state:'PA',city:'Harrisburg',callsign:'WPMT'},
+      {parent:'FOX_LOCAL',state:'PA',city:'Johnstown',callsign:'WWCP'},
+      {parent:'FOX_LOCAL',state:'PA',city:'Philadelphia',callsign:'WTXF'},
+      {parent:'FOX_LOCAL',state:'PA',city:'Pittsburgh',callsign:'WPGH'},
+      {parent:'FOX_LOCAL',state:'PA',city:'Wilkes Barre',callsign:'WOLF'},
+      {parent:'FOX_LOCAL',state:'RI',city:'Providence',callsign:'WNAC'},
+      {parent:'FOX_LOCAL',state:'SC',city:'Charleston',callsign:'WTAT'},
+      {parent:'FOX_LOCAL',state:'SC',city:'Columbia',callsign:'WACH'},
+      {parent:'FOX_LOCAL',state:'SC',city:'Greenville',callsign:'WHNS'},
+      {parent:'FOX_LOCAL',state:'SC',city:'Myrtle Beach',callsign:'WFXB'},
+      {parent:'FOX_LOCAL',state:'SD',city:'Rapid City',callsign:'KEVN'},
+      {parent:'FOX_LOCAL',state:'SD',city:'Sioux Falls',callsign:'KDLT'},
+      {parent:'FOX_LOCAL',state:'TN',city:'Chattanooga',callsign:'WTVC'},
+      {parent:'FOX_LOCAL',state:'TN',city:'Knoxville',callsign:'WTNZ'},
+      {parent:'FOX_LOCAL',state:'TN',city:'Memphis',callsign:'WHBQ'},
+      {parent:'FOX_LOCAL',state:'TN',city:'Nashville',callsign:'WZTV'},
+      {parent:'FOX_LOCAL',state:'TN',city:'Tri Cities',callsign:'WEMT'},
+      {parent:'FOX_LOCAL',state:'TX',city:'Abilene',callsign:'KXVA'},
+      {parent:'FOX_LOCAL',state:'TX',city:'Amarillo',callsign:'KCIT'},
+      {parent:'FOX_LOCAL',state:'TX',city:'Austin',callsign:'KTBC'},
+      {parent:'FOX_LOCAL',state:'TX',city:'Beaumont',callsign:'KBTV'},
+      {parent:'FOX_LOCAL',state:'TX',city:'Corpus Christi',callsign:'KSCC'},
+      {parent:'FOX_LOCAL',state:'TX',city:'Dallas',callsign:'KDFW'},
+      {parent:'FOX_LOCAL',state:'TX',city:'El Paso',callsign:'KFOX'},
+      {parent:'FOX_LOCAL',state:'TX',city:'Harlingen',callsign:'KFXV'},
+      {parent:'FOX_LOCAL',state:'TX',city:'Houston',callsign:'KRIV'},
+      {parent:'FOX_LOCAL',state:'TX',city:'Laredo',callsign:'KXOF'},
+      {parent:'FOX_LOCAL',state:'TX',city:'Lubbock',callsign:'KJTV'},
+      {parent:'FOX_LOCAL',state:'TX',city:'Odessa',callsign:'KPEJ'},
+      {parent:'FOX_LOCAL',state:'TX',city:'San Angelo',callsign:'KIDY'},
+      {parent:'FOX_LOCAL',state:'TX',city:'San Antonio',callsign:'KABB'},
+      {parent:'FOX_LOCAL',state:'TX',city:'Sherman',callsign:'KXII'},
+      {parent:'FOX_LOCAL',state:'TX',city:'Tyler',callsign:'KFXK'},
+      {parent:'FOX_LOCAL',state:'TX',city:'Waco',callsign:'KWKT'},
+      {parent:'FOX_LOCAL',state:'TX',city:'Wichita Falls',callsign:'KJTL'},
+      {parent:'FOX_LOCAL',state:'UT',city:'Salt Lake City',callsign:'KSTU'},
+      {parent:'FOX_LOCAL',state:'VA',city:'Charlottesville',callsign:'WCAV'},
+      {parent:'FOX_LOCAL',state:'VA',city:'Harrisonburg',callsign:'WSVF'},
+      {parent:'FOX_LOCAL',state:'VA',city:'Norfolk',callsign:'WVBT'},
+      {parent:'FOX_LOCAL',state:'VA',city:'Richmond',callsign:'WRLH'},
+      {parent:'FOX_LOCAL',state:'VA',city:'Roanoke',callsign:'WFXR'},
+      {parent:'FOX_LOCAL',state:'VT',city:'Burlington',callsign:'WFFF'},
+      {parent:'FOX_LOCAL',state:'WA',city:'Seattle',callsign:'KCPQ'},
+      {parent:'FOX_LOCAL',state:'WA',city:'Spokane',callsign:'KAYU'},
+      {parent:'FOX_LOCAL',state:'WA',city:'Yakima',callsign:'KFFX'},
+      {parent:'FOX_LOCAL',state:'WI',city:'Green Bay',callsign:'WLUK'},
+      {parent:'FOX_LOCAL',state:'WI',city:'La Crosse',callsign:'WLAX'},
+      {parent:'FOX_LOCAL',state:'WI',city:'Madison',callsign:'WMSN'},
+      {parent:'FOX_LOCAL',state:'WI',city:'Milwaukee',callsign:'WITI'},
+      {parent:'FOX_LOCAL',state:'WI',city:'Wausau',callsign:'WZAW'},
+      {parent:'FOX_LOCAL',state:'WV',city:'Charleston',callsign:'WVAH'},
+      {parent:'FOX_LOCAL',state:'WV',city:'Clarksburg',callsign:'WVFX'},
+      {parent:'FOX_LOCAL',state:'WV',city:'Wheeling',callsign:'WTOV'},
+      {parent:'FOX_LOCAL',state:'WY',city:'Cheyenne',callsign:'KLWY'}
+    ];
+
+    function affiliatePattern(callsign){
+      return new RegExp(`\\b${String(callsign||"").replace(/[.*+?^${}()|[\\]\\]/g,"\\$&")}(?:-TV|-DT)?\\b`,"i");
+    }
+    const LOCAL_AFFILIATE_PARENT_RULES = NATIONAL_LOCAL_AFFILIATES.map(row=>({...row,market:row.city,pattern:affiliatePattern(row.callsign)}));
+
+    function normalizeMarketCompare(value){
+      return String(normalizeMarketName(value)||"").toLowerCase().replace(/\bst\.?\b/g,"saint").replace(/ft\.?/g,"fort").replace(/[^a-z0-9]+/g," " ).trim();
+    }
+    function affiliateCityMatchesMarket(city,market){
+      const c=normalizeMarketCompare(city),m=normalizeMarketCompare(market);
+      if(!c||!m)return false;
+      if(c===m||m.includes(c)||c.includes(m))return true;
+      const cWords=c.split(/\s+/).filter(w=>w.length>2),mWords=new Set(m.split(/\s+/));
+      return cWords.length>0&&cWords.every(w=>mWords.has(w));
+    }
+    function classifyLocalAffiliate(names){
+      const joined=names.join(" | "),hit=LOCAL_AFFILIATE_PARENT_RULES.find(rule=>rule.pattern.test(joined));
+      return hit?.parent||"";
+    }
+    function getLocalAffiliateMarket(names){
+      const joined=names.join(" | "),hit=LOCAL_AFFILIATE_PARENT_RULES.find(rule=>rule.pattern.test(joined));
+      return hit?.market||"";
+    }
+    function getLocalAffiliateCallsign(names){
+      const joined=names.join(" | "),hit=LOCAL_AFFILIATE_PARENT_RULES.find(rule=>rule.pattern.test(joined));
+      return hit?.callsign||"";
+    }
+    // Release 3.2: nationwide ZIP-first TV-market estimate with persistent local caching.
+    // Nielsen defines 210 U.S. DMA regions, but the exact ZIP/boundary dataset is
+    // licensed. Gridiron Guide therefore uses public market-center coordinates as an
+    // approximation for auto-detection and labels the result accordingly. A user
+    // can always override the estimate by saving a ZIP.
+    const US_TV_MARKET_GIST_API="https://api.github.com/gists/9ee4abc14dd5590434fe273f59cdf07f";
+    const US_TV_MARKET_CENTERS_URL="https://gist.githubusercontent.com/perrydc/9ee4abc14dd5590434fe273f59cdf07f/raw/a9a61694e1612455e4c2c96c7039378757fed21e/dma.json";
+    const US_ZIP_COORDS_URL="https://cdn.jsdelivr.net/npm/zipcodes-us@1.1.3/data/US.txt";
+    const US_TV_MARKET_CACHE_KEY="gridironGuide.tvMarketCenters.v2";
+    const ZIP_MARKET_CACHE_KEY="gridironGuide.zipMarketCache.v1";
+    const ZIP_COORD_CACHE_KEY="gridironGuide.zipCoordCache.v1";
+    // Release 3.7: compact embedded metro ZIP-prefix centroids. These are a fast
+    // offline hint, not an official ZIP→DMA table. Exact cached ZIPs win; unknown
+    // prefixes still fall back to the full public ZIP centroid source.
+    const EMBEDDED_ZIP_PREFIX_HINTS=Object.freeze({
+      "100":[40.7128,-74.0060,"New York","NY"],"101":[40.7128,-74.0060,"New York","NY"],"102":[40.7128,-74.0060,"New York","NY"],
+      "191":[39.9526,-75.1652,"Philadelphia","PA"],"200":[38.9072,-77.0369,"Washington","DC"],"201":[38.9072,-77.0369,"Washington","DC"],
+      "212":[39.2904,-76.6122,"Baltimore","MD"],"303":[33.7490,-84.3880,"Atlanta","GA"],"331":[25.7617,-80.1918,"Miami","FL"],
+      "336":[27.9506,-82.4572,"Tampa-St. Petersburg","FL"],"372":[36.1627,-86.7816,"Nashville","TN"],"282":[35.2271,-80.8431,"Charlotte","NC"],
+      "322":[30.3322,-81.6557,"Jacksonville","FL"],"452":[39.1031,-84.5120,"Cincinnati","OH"],"441":[41.4993,-81.6944,"Cleveland","OH"],
+      "462":[39.7684,-86.1581,"Indianapolis","IN"],"482":[42.3314,-83.0458,"Detroit","MI"],"606":[41.8781,-87.6298,"Chicago","IL"],
+      "532":[43.0389,-87.9065,"Milwaukee","WI"],"551":[44.9537,-93.0900,"Minneapolis-St. Paul","MN"],"554":[44.9778,-93.2650,"Minneapolis-St. Paul","MN"],
+      "641":[39.0997,-94.5786,"Kansas City","MO"],"661":[39.1142,-94.6275,"Kansas City","KS"],"752":[32.7767,-96.7970,"Dallas-Fort Worth","TX"],
+      "761":[32.7555,-97.3308,"Dallas-Fort Worth","TX"],"770":[29.7604,-95.3698,"Houston","TX"],"802":[39.7392,-104.9903,"Denver","CO"],
+      "850":[33.4484,-112.0740,"Phoenix","AZ"],"891":[36.1699,-115.1398,"Las Vegas","NV"],"900":[34.0522,-118.2437,"Los Angeles","CA"],
+      "901":[34.0522,-118.2437,"Los Angeles","CA"],"902":[34.0522,-118.2437,"Los Angeles","CA"],"904":[34.0195,-118.4912,"Los Angeles","CA"],
+      "921":[32.7157,-117.1611,"San Diego","CA"],"920":[32.7157,-117.1611,"San Diego","CA"],"941":[37.7749,-122.4194,"San Francisco","CA"],
+      "940":[37.7749,-122.4194,"San Francisco","CA"],"981":[47.6062,-122.3321,"Seattle-Tacoma","WA"],"980":[47.6062,-122.3321,"Seattle-Tacoma","WA"],
+      "021":[42.3601,-71.0589,"Boston","MA"],"022":[42.3601,-71.0589,"Boston","MA"],"142":[42.8864,-78.8784,"Buffalo","NY"],
+      "152":[40.4406,-79.9959,"Pittsburgh","PA"],"701":[29.9511,-90.0715,"New Orleans","LA"],"543":[44.5133,-88.0133,"Green Bay","WI"]
+    });
+    const MARKET_NAME_ALIASES=Object.freeze({
+      "Dallas-Ft. Worth":"Dallas-Fort Worth",
+      "San Francisco-Oak-San Jose":"San Francisco",
+      "Washington, DC (Hagrstwn)":"Washington",
+      "Boston (Manchester)":"Boston",
+      "Tampa-St. Pete (Sarasota)":"Tampa-St. Petersburg",
+      "Phoenix (Prescott)":"Phoenix",
+      "Miami-Ft. Lauderdale":"Miami",
+      "Cleveland-Akron (Canton)":"Cleveland",
+      "Green Bay-Appleton":"Green Bay"
+    });
+    const NFL_HOME_MARKETS = Object.freeze([
+      {market:"Phoenix",lat:33.4484,lon:-112.0740,teams:["ARI"]},
+      {market:"Atlanta",lat:33.7490,lon:-84.3880,teams:["ATL"]},
+      {market:"Baltimore",lat:39.2904,lon:-76.6122,teams:["BAL"]},
+      {market:"Buffalo",lat:42.8864,lon:-78.8784,teams:["BUF"]},
+      {market:"Charlotte",lat:35.2271,lon:-80.8431,teams:["CAR"]},
+      {market:"Chicago",lat:41.8781,lon:-87.6298,teams:["CHI"]},
+      {market:"Cincinnati",lat:39.1031,lon:-84.5120,teams:["CIN"]},
+      {market:"Cleveland",lat:41.4993,lon:-81.6944,teams:["CLE"]},
+      {market:"Dallas-Fort Worth",lat:32.7767,lon:-96.7970,teams:["DAL"]},
+      {market:"Denver",lat:39.7392,lon:-104.9903,teams:["DEN"]},
+      {market:"Detroit",lat:42.3314,lon:-83.0458,teams:["DET"]},
+      {market:"Green Bay",lat:44.5133,lon:-88.0133,teams:["GB"]},
+      {market:"Houston",lat:29.7604,lon:-95.3698,teams:["HOU"]},
+      {market:"Indianapolis",lat:39.7684,lon:-86.1581,teams:["IND"]},
+      {market:"Jacksonville",lat:30.3322,lon:-81.6557,teams:["JAX"]},
+      {market:"Kansas City",lat:39.0997,lon:-94.5786,teams:["KC"]},
+      {market:"Las Vegas",lat:36.1699,lon:-115.1398,teams:["LV"]},
+      {market:"Los Angeles",lat:34.0522,lon:-118.2437,teams:["LAC","LAR"]},
+      {market:"Miami",lat:25.7617,lon:-80.1918,teams:["MIA"]},
+      {market:"Minneapolis-St. Paul",lat:44.9537,lon:-93.0900,teams:["MIN"]},
+      {market:"Boston",lat:42.3601,lon:-71.0589,teams:["NE"]},
+      {market:"New Orleans",lat:29.9511,lon:-90.0715,teams:["NO"]},
+      {market:"New York",lat:40.7128,lon:-74.0060,teams:["NYG","NYJ"]},
+      {market:"Philadelphia",lat:39.9526,lon:-75.1652,teams:["PHI"]},
+      {market:"Pittsburgh",lat:40.4406,lon:-79.9959,teams:["PIT"]},
+      {market:"San Francisco",lat:37.7749,lon:-122.4194,teams:["SF"]},
+      {market:"Seattle-Tacoma",lat:47.6062,lon:-122.3321,teams:["SEA"]},
+      {market:"Tampa-St. Petersburg",lat:27.9506,lon:-82.4572,teams:["TB"]},
+      {market:"Nashville",lat:36.1627,lon:-86.7816,teams:["TEN"]},
+      {market:"Washington",lat:38.9072,lon:-77.0369,teams:["WSH"]}
+    ]);
+
+    function haversineMiles(aLat,aLon,bLat,bLon){
+      const r=3958.8,toRad=x=>x*Math.PI/180;
+      const dLat=toRad(bLat-aLat),dLon=toRad(bLon-aLon);
+      const q=Math.sin(dLat/2)**2+Math.cos(toRad(aLat))*Math.cos(toRad(bLat))*Math.sin(dLon/2)**2;
+      return 2*r*Math.asin(Math.sqrt(q));
+    }
+    function normalizeMarketName(name){return MARKET_NAME_ALIASES[String(name||"").trim()]||String(name||"").trim();}
+    // Match weekly coverage market labels to ZIP-resolved DMA names.
+    // Example: "San Diego, CA" in JSON versus "San Diego" from ZIP lookup.
+    function marketsEquivalent(a,b){
+      const normalize=value=>normalizeMarketName(String(value||""))
+        .normalize("NFKD").replace(/[\u0300-\u036f]/g,"")
+        .toLowerCase().replace(/\([^)]*\)/g," ")
+        .replace(/\b(?:ca|california|ny|new york|wa|washington|tx|texas)\b(?=\s*$)/g,"")
+        .replace(/[^a-z0-9]+/g," ").trim();
+      const left=normalize(a),right=normalize(b);
+      return !!left&&!!right&&(left===right||left.startsWith(right+" ")||right.startsWith(left+" "));
+    }
+    function validMarketCenters(rows){
+      return Array.isArray(rows)&&rows.length>=180&&rows.every(r=>r&&typeof r.dma==="string"&&Number.isFinite(Number(r.lat))&&Number.isFinite(Number(r.lon)));
+    }
+    async function loadNationalMarketCenters(){
+      try{
+        const cached=JSON.parse(localStorage.getItem(US_TV_MARKET_CACHE_KEY)||"null");
+        if(validMarketCenters(cached))return cached;
+      }catch{}
+      let rows=null;
+      try{
+        const response=await fetch(US_TV_MARKET_GIST_API,{cache:"force-cache",headers:{Accept:"application/vnd.github+json"}});
+        if(response.ok){
+          const payload=await response.json();
+          rows=JSON.parse(payload?.files?.["dma.json"]?.content||"null");
+        }
+      }catch{}
+      if(!validMarketCenters(rows)){
+        const response=await fetch(US_TV_MARKET_CENTERS_URL,{cache:"force-cache"});
+        if(!response.ok)throw new Error(`market data ${response.status}`);
+        rows=await response.json();
+      }
+      if(!validMarketCenters(rows))throw new Error("market data invalid");
+      try{localStorage.setItem(US_TV_MARKET_CACHE_KEY,JSON.stringify(rows));}catch{}
+      return rows;
+    }
+
+    function readJsonCache(key){try{return JSON.parse(localStorage.getItem(key)||"{}")}catch{return {}}}
+    function writeJsonCache(key,value){try{localStorage.setItem(key,JSON.stringify(value))}catch{}}
+
+    async function lookupZipCoordinates(zip){
+      const z=String(zip||"").trim();
+      if(!/^\d{5}$/.test(z))return null;
+      const cache=readJsonCache(ZIP_COORD_CACHE_KEY);
+      if(cache[z]&&Number.isFinite(cache[z].lat)&&Number.isFinite(cache[z].lon))return cache[z];
+      const hint=EMBEDDED_ZIP_PREFIX_HINTS[z.slice(0,3)];
+      if(hint){
+        const compact={zip:z,city:hint[2],state:hint[3],lat:hint[0],lon:hint[1],source:"embedded ZIP prefix"};
+        cache[z]=compact;writeJsonCache(ZIP_COORD_CACHE_KEY,cache);return compact;
+      }
+      const response=await fetch(US_ZIP_COORDS_URL,{cache:"force-cache"});
+      if(!response.ok)throw new Error(`ZIP data ${response.status}`);
+      const text=await response.text();
+      let hit=null;
+      for(const line of text.split(/\r?\n/)){
+        if(!line)continue;
+        const cols=line.split("\t");
+        if(cols[1]!==z)continue;
+        const lat=Number(cols[9]),lon=Number(cols[10]);
+        if(Number.isFinite(lat)&&Number.isFinite(lon)){hit={zip:z,city:cols[2]||"",state:cols[4]||"",lat,lon};break;}
+      }
+      if(hit){cache[z]=hit;writeJsonCache(ZIP_COORD_CACHE_KEY,cache);}
+      return hit;
+    }
+    async function resolveMarketFromZip(zip){
+      const z=String(zip||"").trim();
+      if(!/^\d{5}$/.test(z))return null;
+      const marketCache=readJsonCache(ZIP_MARKET_CACHE_KEY);
+      if(marketCache[z]?.market)return marketCache[z];
+      const coord=await lookupZipCoordinates(z);
+      if(!coord)return null;
+      const hit=nearestMarketFromRows(coord.lat,coord.lon,await loadNationalMarketCenters());
+      if(!hit)return null;
+      const resolved={zip:z,city:coord.city,state:coord.state,market:hit.market,miles:Math.round(hit.miles*10)/10,confidence:hit.confidence||"",source:"ZIP estimate"};
+      marketCache[z]=resolved;writeJsonCache(ZIP_MARKET_CACHE_KEY,marketCache);
+      return resolved;
+    }
+    function nearestMarketFromRows(lat,lon,rows){
+      let best=null,second=null;
+      rows.forEach(r=>{
+        const miles=haversineMiles(lat,lon,Number(r.lat),Number(r.lon));
+        const hit={market:normalizeMarketName(r.dma),rawMarket:r.dma,lat:Number(r.lat),lon:Number(r.lon),miles};
+        if(!best||miles<best.miles){second=best;best=hit;}else if(!second||miles<second.miles)second=hit;
+      });
+      if(!best)return null;
+      const separation=second?second.miles-best.miles:999;
+      return {...best,secondMiles:second?.miles??null,confidence:separation>=25?"high":separation>=10?"medium":"low"};
+    }
+    async function estimateUsTvMarket(lat,lon){
+      try{return nearestMarketFromRows(lat,lon,await loadNationalMarketCenters());}
+      catch{
+        // Offline/fetch fallback keeps the prior conservative NFL-home-market
+        // behavior only when the user is actually nearby. It must never turn a
+        // distant city into the nearest NFL market.
+        const fallback=nearestMarketFromRows(lat,lon,NFL_HOME_MARKETS.map(m=>({dma:m.market,lat:m.lat,lon:m.lon})));
+        return fallback&&fallback.miles<=70?{...fallback,confidence:"fallback"}:null;
+      }
+    }
+    function marketTeams(market){return NFL_HOME_MARKETS.find(m=>m.market===market)?.teams||[];}
+    function gameMatchesMarketTeam(game,market){
+      const teams=marketTeams(market);
+      return teams.includes(String(game.awayAbbr||"").toUpperCase())||teams.includes(String(game.homeAbbr||"").toUpperCase());
+    }
+
+    const STREAMING_RIGHTS_SCHEMA=1;
+    const STREAMING_RIGHTS_CACHE_KEY="gridironGuide.streamingRights.v1";
+    const STREAMING_RIGHTS_2026={
+      prime:[
+        ["2026-08-27","NE","CLE"],["2026-09-17","DET","BUF"],["2026-09-24","ATL","GB"],["2026-10-01","PIT","CLE"],["2026-10-08","TB","DAL"],["2026-10-15","SEA","DEN"],["2026-10-22","NE","CHI"],["2026-10-29","CAR","GB"],["2026-11-05","JAX","BAL"],["2026-11-12","WSH","NYG"],["2026-11-19","IND","HOU"],["2026-11-27","DEN","PIT"],["2026-12-03","KC","LAR"],["2026-12-10","MIN","NE"],["2026-12-17","SF","LAC"],["2026-12-24","HOU","PHI"],["2026-12-31","BAL","CIN"]
+      ],
+      netflix:[
+        ["2026-09-10","LAR","SF"],["2026-11-25","GB","LAR"],
+        ["2026-12-25","GB","CHI"],["2026-12-25","BUF","DEN"]
+        // Netflix also owns one Week 18 game; matchup is TBD and is intentionally
+        // not assigned until ESPN/NFL publish the selected game.
+      ],
+      peacock:[
+        ["2026-09-09","NE","SEA"],["2026-09-13","DAL","NYG"],["2026-09-20","IND","KC"],["2026-09-27","LAR","DEN"],["2026-10-04","DET","CAR"],["2026-10-11","BAL","ATL"],["2026-10-18","DAL","GB"],["2026-10-25","KC","SEA"],["2026-11-01","PHI","WSH"],["2026-11-08","TB","CHI"],["2026-11-15","PIT","CIN"],["2026-11-22","MIN","SF"],["2026-11-26","KC","BUF"],["2026-11-29","NE","LAC"],["2026-12-06","HOU","PIT"],["2026-12-13","BUF","GB"],["2026-12-20","DET","MIN"],["2026-12-27","JAX","DAL"],["2027-01-03","PHI","SF"]
+      ]
+    };
+    function rightsKey(date,away,home){return `${date}|${String(away).toUpperCase()}|${String(home).toUpperCase()}`;}
+    function currentRightsSeason(){return Number(getSeasonYear?.()||new Date().getFullYear());}
+    function buildSeasonalStreamingRights(season){
+      const out={season,schema:STREAMING_RIGHTS_SCHEMA,generatedAt:Date.now(),games:{}};
+      const add=(date,a,h,p,source,confidence="VERIFIED")=>{
+        const k=rightsKey(date,a,h);out.games[k]||={};out.games[k][p]={value:true,source,confidence};
+      };
+      if(season===2026)Object.entries(STREAMING_RIGHTS_2026).forEach(([p,rows])=>rows.forEach(r=>add(...r,p,`2026 ${p} first-party schedule`)));
+      allGames.forEach(g=>{
+        const names=getBroadcastNames(g).join(" | "),date=localGameDate(g),cls=classifyBroadcastNetwork(g);
+        if(/\bprime(?: video)?\b/i.test(names))add(date,g.awayAbbr,g.homeAbbr,"prime","ESPN explicit Prime");
+        if(/\bnetflix\b/i.test(names))add(date,g.awayAbbr,g.homeAbbr,"netflix","ESPN explicit Netflix");
+        if(/\bpeacock\b/i.test(names))add(date,g.awayAbbr,g.homeAbbr,"peacock","ESPN explicit Peacock");
+        if(/\bparamount\s*\+?\b/i.test(names))add(date,g.awayAbbr,g.homeAbbr,"paramount","ESPN explicit Paramount+");
+        if(["FOX_NATIONAL","FOX_REGIONAL"].includes(cls))add(date,g.awayAbbr,g.homeAbbr,"fox",cls==="FOX_REGIONAL"?"ESPN regional FOX":"ESPN explicit national FOX","STRONG");
+      });
+      return out;
+    }
+    function ensureSeasonalStreamingRights({force=false}={}){
+      const season=currentRightsSeason();
+      try{
+        if(!force){
+          const c=JSON.parse(localStorage.getItem(STREAMING_RIGHTS_CACHE_KEY)||"null");
+          if(c?.season===season&&c?.schema===STREAMING_RIGHTS_SCHEMA){
+            providerValidation={savedAt:c.generatedAt||Date.now(),games:c.games||{}};
+            return;
+          }
+        }
+      }catch(_){}
+      const b=buildSeasonalStreamingRights(season);
+      providerValidation={savedAt:b.generatedAt,games:b.games};
+      try{localStorage.setItem(STREAMING_RIGHTS_CACHE_KEY,JSON.stringify(b));}catch(_){}
+    }
+    let providerValidation={savedAt:0,games:{}};
+
+    function providerValidationKey(game){
+      return `${localGameDate(game)}|${String(game.awayAbbr||"").toUpperCase()}|${String(game.homeAbbr||"").toUpperCase()}`;
+    }
+
+    function providerValidationAllows(game,key){return providerValidation.games?.[providerValidationKey(game)]?.[key]?.value===true;}
+
+    function classifyBroadcastNetwork(game){
+      const names=getBroadcastNames(game);
+      const s=names.join(" | ").replace(/\s+/g," ").trim();
+      if(/\bnetflix\b/i.test(s))return "NETFLIX";
+      if(/\b(?:amazon\s+)?prime(?:\s+video)?\b/i.test(s))return "PRIME";
+      if(/\bpeacock\b/i.test(s)&&!/\bnbc/i.test(s))return "PEACOCK_EXCLUSIVE";
+      if(/\bnfl\s*(?:network|net)\b|\bnfln\b/i.test(s))return "NFL_NETWORK";
+      if(/\bespn(?:2|news|u)?\b/i.test(s))return "ESPN";
+
+      // Parent-network token matching intentionally ignores channel numbers:
+      // FOX30 / FOX 5, ABC7, CBS2, NBC4, etc.
+      if(/\bcbs\s*\d*\b/i.test(s))return "CBS";
+      if(/\bnbc\s*\d*\b/i.test(s))return "NBC";
+      if(/\babc\s*\d*\b/i.test(s))return "ABC";
+      if(isRegionalFoxBroadcast(game))return "FOX_REGIONAL";
+      if(isNationalFoxBroadcast(game))return "FOX_NATIONAL";
+      if(/\bfox\s*\d*\b/i.test(s))return "FOX_LOCAL";
+
+      const affiliateParent=classifyLocalAffiliate(names);
+      return affiliateParent||"UNKNOWN";
+    }
+
+    function baseProvidersForNetwork(game){
+      // Compatibility wrapper retained so all existing filtering/eligibility callers
+      // continue to receive the exact same {networkClass, providers} shape.
+      const context=getBroadcastContext(game);
+      return {
+        networkClass:context.networkClass,
+        providers:context.providers
+      };
+    }
+
+    let allGames = [];
+    let sortMode = localStorage.getItem("gridironGuide.sortMode") || "kickoff";
+    const SAVED_GAMES_SUBVIEW=localStorage.getItem("gridironGuide.gamesSubview.v1");
+    let gamesSubview=["all","live","local"].includes(SAVED_GAMES_SUBVIEW)?SAVED_GAMES_SUBVIEW:"all";
+    if(sortMode==="live")sortMode="kickoff";
+    let selectedScheduleWeek = null;
+    let scheduleWeeks = [];
+    migrateAppData();
+    let enabledProviders = readEnabledProviders();
+    let preferredProvider = localStorage.getItem(PREFERRED_PROVIDER_KEY) || "auto";
+let directvZip=localStorage.getItem(DIRECTV_ZIP_KEY)||"";
+    let directvMarket=localStorage.getItem(DIRECTV_MARKET_KEY)||"";
+    let directvMarketSource=localStorage.getItem(DIRECTV_MARKET_SOURCE_KEY)||"";
+    let directvNflPackageEnabled=localStorage.getItem(DIRECTV_NFL_PACKAGE_KEY)==="true";
+    let sundayTicketEnabled=localStorage.getItem(SUNDAY_TICKET_KEY)==="true";
+    let showRadioBroadcasts=localStorage.getItem("gridironGuide.showRadioBroadcasts.v1")!=="false";
+    let favoriteTeams=readFavoriteTeams();
+    let followedGameIds=readFollowedGameIds();
+    let lastNativeFollowSyncFingerprint="";
+    let lastNativeWidgetSyncFingerprint="";
+    let pendingNativeWidgetGameId="";
+    let weeklyCoverageData=readWeeklyCoverageCache();
+    const scheduleEl = document.querySelector("#schedule");
+    const weekTimelineEl = document.querySelector("#weekTimeline");
+    const weekPrevBtnEl = document.querySelector("#weekPrevBtn");
+    const weekNextBtnEl = document.querySelector("#weekNextBtn");
+    const toastEl = document.querySelector("#toast");
+    const settingsOverlayEl = document.querySelector("#settingsOverlay");
+    const settingsBtnEl = document.querySelector("#settingsBtn");
+    const settingsCloseBtnEl = document.querySelector("#settingsCloseBtn");
+
+    function detectDevice(){
+      const ua = navigator.userAgent || navigator.vendor || window.opera || "";
+      const platform = navigator.platform || "";
+      const isIPadOS = platform === "MacIntel" && navigator.maxTouchPoints > 1;
+      const isIOS = /iPad|iPhone|iPod/.test(ua) || isIPadOS;
+      const isAndroid = /Android/i.test(ua);
+      const isStandalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+      const isSafari = /^((?!chrome|android).)*safari/i.test(ua);
+      return { isIOS, isAndroid, isSafari, isStandalone, isMobile: isIOS || isAndroid };
+    }
+
+    function updatePlatformUi(){
+      if(DEVICE.isIOS){
+        document.body.classList.add("ios");
+      } else if(DEVICE.isAndroid){
+        document.body.classList.add("android");
+      }
+    }
+    
+
+    function showToast(message){
+      toastEl.textContent = message;
+      toastEl.classList.add("show");
+      clearTimeout(showToast.timer);
+      showToast.timer = setTimeout(() => toastEl.classList.remove("show"), 2600);
+    }
+
+    function getSeasonYear(){
+      const now = new Date();
+      const year = now.getFullYear();
+      return now.getMonth() <= 1 ? year - 1 : year;
+    }
+
+    // Builds a broad list of ESPN URLs for the current NFL season.
+    // First URL asks ESPN for the whole season. If that result is sparse,
+    // fetchEspnSchedule() fans out by season type and week below.
+    function buildEspnUrls(){
+      const season = getSeasonYear();
+      const urls = [`${ESPN_BASE}?limit=1000&dates=${season}`];
+      for(const type of [1,2,3]){
+        const maxWeek = type === 2 ? 18 : 5;
+        for(let week = 1; week <= maxWeek; week++){
+          urls.push(`${ESPN_BASE}?limit=1000&dates=${season}&seasontype=${type}&week=${week}`);
+        }
+      }
+      return urls;
+    }
+
+    // Pulls ESPN data and normalizes it into this app's simple game model.
+    // Starts with the season-level request, then falls back to week-by-week
+    // requests if not enough playable games are returned.
+    function readSeasonScheduleCache(){
+      try{
+        const saved=JSON.parse(localStorage.getItem(SEASON_CACHE_KEY)||"null");
+        if(!saved?.games?.length)return null;
+        return {
+          games:saved.games,
+          savedAt:Number(saved.savedAt||0),
+          fresh:Date.now()-Number(saved.savedAt||0)<SEASON_CACHE_TTL_MS
+        };
+      }catch(_){return null}
+    }
+
+    function writeSeasonScheduleCache(games){
+      try{
+        localStorage.setItem(SEASON_CACHE_KEY,JSON.stringify({
+          savedAt:Date.now(),
+          games
+        }));
+      }catch(_){}
+    }
+
+    // Bundled regular-season safety net. This is intentionally used only when
+    // there is no device cache and ESPN cannot return a season schedule.
+    // Row shape: [event id, kickoff UTC (blank when officially TBD), week,
+    // away abbreviation, home abbreviation, primary network].
+    const EMBEDDED_2026_SCHEDULE=[["401872656","2026-09-10T00:20:00Z",1,"NE","SEA","NBC"],["401872657","2026-09-11T00:35:00Z",1,"SF","LAR","Netflix"],["401872658","2026-09-13T17:00:00Z",1,"ATL","PIT","FOX"],["401872659","2026-09-13T17:00:00Z",1,"BAL","IND","CBS"],["401872660","2026-09-13T17:00:00Z",1,"BUF","HOU","CBS"],["401872661","2026-09-13T17:00:00Z",1,"CHI","CAR","FOX"],["401872922","2026-09-13T17:00:00Z",1,"CLE","JAX","CBS"],["401872923","2026-09-13T17:00:00Z",1,"NO","DET","FOX"],["401872924","2026-09-13T17:00:00Z",1,"NYJ","TEN","CBS"],["401872925","2026-09-13T17:00:00Z",1,"TB","CIN","FOX"],["401872926","2026-09-13T20:25:00Z",1,"ARI","LAC","CBS"],["401872927","2026-09-13T20:25:00Z",1,"GB","MIN","CBS"],["401872928","2026-09-13T20:25:00Z",1,"MIA","LV","FOX"],["401872929","2026-09-13T20:25:00Z",1,"WSH","PHI","FOX"],["401872930","2026-09-14T00:20:00Z",1,"DAL","NYG","NBC"],["401872931","2026-09-15T00:15:00Z",1,"DEN","KC","ESPN/ABC"],["401872932","2026-09-18T00:15:00Z",2,"DET","BUF","Prime Video"],["401872933","2026-09-20T17:00:00Z",2,"CAR","ATL","FOX"],["401872934","2026-09-20T17:00:00Z",2,"CIN","HOU","CBS"],["401872935","2026-09-20T17:00:00Z",2,"CLE","TB","CBS"],["401872936","2026-09-20T17:00:00Z",2,"GB","NYJ","FOX"],["401872937","2026-09-20T17:00:00Z",2,"MIN","CHI","FOX"],["401872938","2026-09-20T17:00:00Z",2,"NO","BAL","CBS"],["401872939","2026-09-20T17:00:00Z",2,"PHI","TEN","FOX"],["401872946","2026-09-20T17:00:00Z",2,"PIT","NE","CBS"],["401872940","2026-09-20T20:05:00Z",2,"JAX","DEN","CBS"],["401872941","2026-09-20T20:05:00Z",2,"LV","LAC","CBS"],["401872942","2026-09-20T20:25:00Z",2,"MIA","SF","FOX"],["401872943","2026-09-20T20:25:00Z",2,"SEA","ARI","FOX"],["401872944","2026-09-20T20:25:00Z",2,"WSH","DAL","FOX"],["401872945","2026-09-21T00:20:00Z",2,"IND","KC","NBC"],["401872947","2026-09-22T00:15:00Z",2,"NYG","LAR","ESPN/ABC"],["401872948","2026-09-25T00:15:00Z",3,"ATL","GB","Prime Video"],["401872949","2026-09-27T17:00:00Z",3,"CAR","CLE","FOX"],["401872950","2026-09-27T17:00:00Z",3,"CIN","PIT","CBS"],["401872951","2026-09-27T17:00:00Z",3,"HOU","IND","CBS"],["401872952","2026-09-27T17:00:00Z",3,"KC","MIA","CBS"],["401872953","2026-09-27T17:00:00Z",3,"LAC","BUF","FOX"],["401872954","2026-09-27T17:00:00Z",3,"NYJ","DET","FOX"],["401872955","2026-09-27T17:00:00Z",3,"SEA","WSH","FOX"],["401872956","2026-09-27T17:00:00Z",3,"TEN","NYG","CBS"],["401872957","2026-09-27T17:00:00Z",3,"NE","JAX","CBS"],["401872958","2026-09-27T20:05:00Z",3,"ARI","SF","FOX"],["401872959","2026-09-27T20:05:00Z",3,"MIN","TB","FOX"],["401872960","2026-09-27T20:25:00Z",3,"BAL","DAL","CBS"],["401872961","2026-09-27T20:25:00Z",3,"LV","NO","CBS"],["401872962","2026-09-28T00:20:00Z",3,"LAR","DEN","NBC"],["401872963","2026-09-29T00:15:00Z",3,"PHI","CHI","ESPN/ABC"],["401872964","2026-10-02T00:15:00Z",4,"PIT","CLE","Prime Video"],["401872965","2026-10-04T13:30:00Z",4,"IND","WSH","NFL Net"],["401872966","2026-10-04T17:00:00Z",4,"ARI","NYG","CBS"],["401872967","2026-10-04T17:00:00Z",4,"DAL","HOU","FOX"],["401872968","2026-10-04T17:00:00Z",4,"GB","TB","FOX"],["401872969","2026-10-04T17:00:00Z",4,"JAX","CIN","CBS"],["401872970","2026-10-04T17:00:00Z",4,"LAR","PHI","FOX"],["401872971","2026-10-04T17:00:00Z",4,"NE","BUF","CBS"],["401872972","2026-10-04T17:00:00Z",4,"NYJ","CHI","FOX"],["401872973","2026-10-04T17:00:00Z",4,"TEN","BAL","CBS"],["401872974","2026-10-04T20:05:00Z",4,"MIA","MIN","FOX"],["401872975","2026-10-04T20:25:00Z",4,"DEN","SF","CBS"],["401872976","2026-10-04T20:25:00Z",4,"KC","LV","CBS"],["401872977","2026-10-04T20:25:00Z",4,"LAC","SEA","CBS"],["401872978","2026-10-05T00:20:00Z",4,"DET","CAR","NBC"],["401872979","2026-10-06T00:15:00Z",4,"ATL","NO","ESPN"],["401872980","2026-10-09T00:15:00Z",5,"TB","DAL","Prime Video"],["401872981","2026-10-11T13:30:00Z",5,"PHI","JAX","NFL Net"],["401872982","2026-10-11T17:00:00Z",5,"CIN","MIA","FOX"],["401872983","2026-10-11T17:00:00Z",5,"CLE","NYJ","CBS"],["401872984","2026-10-11T17:00:00Z",5,"HOU","TEN","CBS"],["401872985","2026-10-11T17:00:00Z",5,"IND","PIT","CBS"],["401872986","2026-10-11T17:00:00Z",5,"LV","NE","CBS"],["401872987","2026-10-11T17:00:00Z",5,"MIN","NO","FOX"],["401872988","2026-10-11T17:00:00Z",5,"NYG","WSH","FOX"],["401872989","2026-10-11T20:05:00Z",5,"DEN","LAC","CBS"],["401872990","2026-10-11T20:25:00Z",5,"CHI","GB","FOX"],["401872991","2026-10-11T20:25:00Z",5,"DET","ARI","FOX"],["401872992","2026-10-11T20:25:00Z",5,"SF","SEA","FOX"],["401872993","2026-10-12T00:20:00Z",5,"BAL","ATL","NBC"],["401872994","2026-10-13T00:15:00Z",5,"BUF","LAR","ESPN/ABC"],["401872995","2026-10-16T00:15:00Z",6,"SEA","DEN","Prime Video"],["401872996","2026-10-18T13:30:00Z",6,"HOU","JAX","NFL Net"],["401872997","2026-10-18T17:00:00Z",6,"BAL","CLE","FOX"],["401872998","2026-10-18T17:00:00Z",6,"CAR","PHI","CBS"],["401872999","2026-10-18T17:00:00Z",6,"CHI","ATL","FOX"],["401873000","2026-10-18T17:00:00Z",6,"NO","NYG","FOX"],["401873001","2026-10-18T17:00:00Z",6,"NYJ","NE","CBS"],["401873002","2026-10-18T17:00:00Z",6,"PIT","TB","CBS"],["401873003","2026-10-18T17:00:00Z",6,"TEN","IND","FOX"],["401873004","2026-10-18T20:05:00Z",6,"ARI","LAR","FOX"],["401873005","2026-10-18T20:25:00Z",6,"BUF","LV","CBS"],["401873006","2026-10-18T20:25:00Z",6,"LAC","KC","CBS"],["401873007","2026-10-19T00:20:00Z",6,"DAL","GB","NBC"],["401873008","2026-10-20T00:15:00Z",6,"WSH","SF","ESPN/ABC"],["401873010","2026-10-23T00:15:00Z",7,"NE","CHI","Prime Video"],["401873011","2026-10-25T13:30:00Z",7,"PIT","NO","NFL Net"],["401873012","2026-10-25T17:00:00Z",7,"CIN","BAL","CBS"],["401873013","2026-10-25T17:00:00Z",7,"CLE","TEN","CBS"],["401873014","2026-10-25T17:00:00Z",7,"IND","MIN","CBS"],["401873015","2026-10-25T17:00:00Z",7,"MIA","NYJ","CBS"],["401873016","2026-10-25T17:00:00Z",7,"NYG","HOU","FOX"],["401873017","2026-10-25T17:00:00Z",7,"SF","ATL","FOX"],["401873018","2026-10-25T17:00:00Z",7,"TB","CAR","FOX"],["401873019","2026-10-25T20:05:00Z",7,"DEN","ARI","CBS"],["401873020","2026-10-25T20:25:00Z",7,"GB","DET","FOX"],["401873021","2026-10-25T20:25:00Z",7,"LAR","LV","FOX"],["401873022","2026-10-26T00:20:00Z",7,"KC","SEA","NBC"],["401873009","2026-10-27T00:15:00Z",7,"DAL","PHI","ESPN/ABC"],["401873023","2026-10-30T00:15:00Z",8,"CAR","GB","Prime Video"],["401873024","2026-11-01T18:00:00Z",8,"ARI","DAL","FOX"],["401873025","2026-11-01T18:00:00Z",8,"ATL","TB","FOX"],["401873026","2026-11-01T18:00:00Z",8,"BAL","BUF","CBS"],["401873027","2026-11-01T18:00:00Z",8,"CLE","PIT","CBS"],["401873028","2026-11-01T18:00:00Z",8,"IND","JAX","CBS"],["401873029","2026-11-01T18:00:00Z",8,"LV","NYJ","FOX"],["401873030","2026-11-01T18:00:00Z",8,"MIN","DET","FOX"],["401873031","2026-11-01T18:00:00Z",8,"TEN","CIN","CBS"],["401873032","2026-11-01T21:05:00Z",8,"LAC","LAR","FOX"],["401873033","2026-11-01T21:25:00Z",8,"KC","DEN","CBS"],["401873034","2026-11-01T21:25:00Z",8,"NE","MIA","CBS"],["401873035","2026-11-02T01:20:00Z",8,"PHI","WSH","NBC"],["401873036","2026-11-03T01:15:00Z",8,"CHI","SEA","ESPN"],["401873037","2026-11-06T01:15:00Z",9,"JAX","BAL","Prime Video"],["401873038","2026-11-08T14:30:00Z",9,"CIN","ATL","NFL Net"],["401873039","2026-11-08T18:00:00Z",9,"CLE","NO","CBS"],["401873040","2026-11-08T18:00:00Z",9,"DAL","IND","FOX"],["401873041","2026-11-08T18:00:00Z",9,"DEN","CAR","CBS"],["401873042","2026-11-08T18:00:00Z",9,"DET","MIA","FOX"],["401873043","2026-11-08T18:00:00Z",9,"LAR","WSH","FOX"],["401873044","2026-11-08T18:00:00Z",9,"NYG","PHI","FOX"],["401873045","2026-11-08T18:00:00Z",9,"NYJ","KC","CBS"],["401873046","2026-11-08T21:05:00Z",9,"HOU","LAC","CBS"],["401873047","2026-11-08T21:05:00Z",9,"LV","SF","CBS"],["401873048","2026-11-08T21:25:00Z",9,"ARI","SEA","FOX"],["401873049","2026-11-08T21:25:00Z",9,"GB","NE","FOX"],["401873050","2026-11-09T01:20:00Z",9,"TB","CHI","NBC"],["401873051","2026-11-10T01:15:00Z",9,"BUF","MIN","ESPN/ABC"],["401873052","2026-11-13T01:15:00Z",10,"WSH","NYG","Prime Video"],["401873053","2026-11-15T14:30:00Z",10,"NE","DET","FOX"],["401873054","2026-11-15T18:00:00Z",10,"BUF","NYJ","CBS"],["401873055","2026-11-15T18:00:00Z",10,"CAR","NO","FOX"],["401873056","2026-11-15T18:00:00Z",10,"HOU","CLE","FOX"],["401873057","2026-11-15T18:00:00Z",10,"JAX","TEN","FOX"],["401873058","2026-11-15T18:00:00Z",10,"KC","ATL","CBS"],["401873059","2026-11-15T18:00:00Z",10,"MIA","IND","CBS"],["401873060","2026-11-15T18:00:00Z",10,"MIN","GB","FOX"],["401873061","2026-11-15T21:05:00Z",10,"LAR","ARI","CBS"],["401873062","2026-11-15T21:05:00Z",10,"SEA","LV","CBS"],["401873063","2026-11-15T21:25:00Z",10,"SF","DAL","FOX"],["401873064","2026-11-16T01:20:00Z",10,"PIT","CIN","NBC"],["401873065","2026-11-17T01:15:00Z",10,"LAC","BAL","ESPN"],["401873066","2026-11-20T01:15:00Z",11,"IND","HOU","Prime Video"],["401873067","2026-11-22T18:00:00Z",11,"ARI","KC","CBS"],["401873068","2026-11-22T18:00:00Z",11,"BAL","CAR","FOX"],["401873069","2026-11-22T18:00:00Z",11,"JAX","NYG","CBS"],["401873070","2026-11-22T18:00:00Z",11,"MIA","BUF","FOX"],["401873071","2026-11-22T18:00:00Z",11,"NO","CHI","FOX"],["401873072","2026-11-22T18:00:00Z",11,"TB","DET","CBS"],["401873073","2026-11-22T18:00:00Z",11,"TEN","DAL","FOX"],["401873074","2026-11-22T21:05:00Z",11,"NYJ","LAC","FOX"],["401873075","2026-11-22T21:25:00Z",11,"LV","DEN","CBS"],["401873076","2026-11-22T21:25:00Z",11,"PIT","PHI","CBS"],["401873077","2026-11-23T01:20:00Z",11,"MIN","SF","NBC"],["401873078","2026-11-24T01:15:00Z",11,"CIN","WSH","ESPN"],["401873079","2026-11-26T01:00:00Z",12,"GB","LAR","Netflix"],["401873081","2026-11-26T18:00:00Z",12,"CHI","DET","CBS"],["401873080","2026-11-26T21:30:00Z",12,"PHI","DAL","FOX"],["401873082","2026-11-27T01:20:00Z",12,"KC","BUF","NBC"],["401873083","2026-11-27T20:00:00Z",12,"DEN","PIT","Prime Video"],["401873084","2026-11-29T18:00:00Z",12,"ATL","MIN","FOX"],["401873085","2026-11-29T18:00:00Z",12,"BAL","HOU","CBS"],["401873086","2026-11-29T18:00:00Z",12,"LV","CLE","FOX"],["401873087","2026-11-29T18:00:00Z",12,"NO","CIN","CBS"],["401873088","2026-11-29T18:00:00Z",12,"NYG","IND","FOX"],["401873089","2026-11-29T18:00:00Z",12,"NYJ","MIA","CBS"],["401873090","2026-11-29T21:05:00Z",12,"TEN","JAX","CBS"],["401873091","2026-11-29T21:25:00Z",12,"SEA","SF","FOX"],["401873092","2026-11-29T21:25:00Z",12,"WSH","ARI","FOX"],["401873093","2026-11-30T01:20:00Z",12,"NE","LAC","NBC"],["401873094","2026-12-01T01:15:00Z",12,"CAR","TB","ESPN"],["401873096","2026-12-04T01:15:00Z",13,"KC","LAR","Prime Video"],["401873095","2026-12-06T18:00:00Z",13,"SF","NYG","FOX"],["401873097","2026-12-06T18:00:00Z",13,"CIN","CLE","CBS"],["401873098","2026-12-06T18:00:00Z",13,"DET","ATL","CBS"],["401873099","2026-12-06T18:00:00Z",13,"GB","NO","FOX"],["401873100","2026-12-06T18:00:00Z",13,"JAX","CHI","FOX"],["401873101","2026-12-06T18:00:00Z",13,"LAC","TB","CBS"],["401873102","2026-12-06T18:00:00Z",13,"WSH","TEN","CBS"],["401873103","2026-12-06T21:05:00Z",13,"MIA","DEN","FOX"],["401873104","2026-12-06T21:05:00Z",13,"PHI","ARI","FOX"],["401873105","2026-12-06T21:25:00Z",13,"BUF","NE","CBS"],["401873106","2026-12-06T21:25:00Z",13,"CAR","MIN","CBS"],["401873107","2026-12-07T01:20:00Z",13,"HOU","PIT","NBC"],["401873108","2026-12-08T01:15:00Z",13,"DAL","SEA","ESPN/ABC"],["401873109","2026-12-11T01:15:00Z",14,"MIN","NE","Prime Video"],["401873110","2026-12-13T18:00:00Z",14,"ATL","CLE","CBS"],["401873111","2026-12-13T18:00:00Z",14,"CHI","MIA","CBS"],["401873112","2026-12-13T18:00:00Z",14,"DEN","NYJ","CBS"],["401873113","2026-12-13T18:00:00Z",14,"HOU","WSH","CBS"],["401873114","2026-12-13T18:00:00Z",14,"IND","PHI","FOX"],["401873115","2026-12-13T18:00:00Z",14,"NO","CAR","CBS"],["401873116","2026-12-13T18:00:00Z",14,"TB","BAL","FOX"],["401873117","2026-12-13T18:00:00Z",14,"TEN","DET","FOX"],["401873118","2026-12-13T21:05:00Z",14,"LAC","LV","CBS"],["401873119","2026-12-13T21:25:00Z",14,"KC","CIN","FOX"],["401873120","2026-12-13T21:25:00Z",14,"LAR","SF","FOX"],["401873121","2026-12-13T21:25:00Z",14,"NYG","SEA","FOX"],["401873122","2026-12-14T01:20:00Z",14,"BUF","GB","NBC"],["401873123","2026-12-15T01:15:00Z",14,"PIT","JAX","ESPN"],["401873124","2026-12-18T01:15:00Z",15,"SF","LAC","Prime Video"],["401873125","2026-12-19T22:00:00Z",15,"SEA","PHI","FOX"],["401873126","2026-12-20T01:20:00Z",15,"CHI","BUF","CBS"],["401873127","2026-12-20T18:00:00Z",15,"ATL","WSH","FOX"],["401873128","2026-12-20T18:00:00Z",15,"BAL","PIT","CBS"],["401873129","2026-12-20T18:00:00Z",15,"CIN","CAR","FOX"],["401873130","2026-12-20T18:00:00Z",15,"CLE","NYG","CBS"],["401873131","2026-12-20T18:00:00Z",15,"IND","TEN","CBS"],["401873132","2026-12-20T18:00:00Z",15,"JAX","HOU","CBS"],["401873133","2026-12-20T18:00:00Z",15,"MIA","GB","FOX"],["401873134","2026-12-20T18:00:00Z",15,"NO","TB","FOX"],["401873135","2026-12-20T21:05:00Z",15,"NYJ","ARI","FOX"],["401873136","2026-12-20T21:25:00Z",15,"DAL","LAR","CBS"],["401873137","2026-12-20T21:25:00Z",15,"DEN","LV","CBS"],["401873138","2026-12-21T01:20:00Z",15,"DET","MIN","NBC"],["401873139","2026-12-22T01:15:00Z",15,"NE","KC","ESPN/ABC"],["401873140","2026-12-25T01:15:00Z",16,"HOU","PHI","Prime Video"],["401873141","2026-12-25T18:00:00Z",16,"GB","CHI","Netflix"],["401873142","2026-12-25T21:30:00Z",16,"BUF","DEN","Netflix"],["401873143","2026-12-26T01:15:00Z",16,"LAR","SEA","FOX"],["401873144","",16,"CAR","PIT",""],["401873145","",16,"CIN","IND",""],["401873146","",16,"TB","ATL",""],["401873147","",16,"WSH","MIN",""],["401873148","2026-12-27T18:00:00Z",16,"ARI","NO","FOX"],["401873149","2026-12-27T18:00:00Z",16,"CLE","BAL","CBS"],["401873150","2026-12-27T18:00:00Z",16,"LAC","MIA","FOX"],["401873151","2026-12-27T18:00:00Z",16,"NE","NYJ","CBS"],["401873152","2026-12-27T21:05:00Z",16,"TEN","LV","FOX"],["401873153","2026-12-27T21:25:00Z",16,"SF","KC","CBS"],["401873154","2026-12-28T01:20:00Z",16,"JAX","DAL","NBC"],["401873155","2026-12-29T01:15:00Z",16,"NYG","DET","ESPN"],["401873156","2027-01-01T01:15:00Z",17,"BAL","CIN","Prime Video"],["401873157","",17,"DEN","NE",""],["401873158","",17,"KC","LAC",""],["401873159","",17,"LAR","TB",""],["401873160","",17,"WSH","JAX",""],["401873161","2027-01-03T18:00:00Z",17,"BUF","MIA","CBS"],["401873162","2027-01-03T18:00:00Z",17,"IND","CLE","FOX"],["401873163","2027-01-03T18:00:00Z",17,"MIN","NYJ","CBS"],["401873164","2027-01-03T18:00:00Z",17,"NO","ATL","FOX"],["401873165","2027-01-03T18:00:00Z",17,"NYG","DAL","FOX"],["401873166","2027-01-03T18:00:00Z",17,"PIT","TEN","CBS"],["401873167","2027-01-03T18:00:00Z",17,"SEA","CAR","FOX"],["401873168","2027-01-03T21:05:00Z",17,"LV","ARI","CBS"],["401873169","2027-01-03T21:25:00Z",17,"DET","CHI","FOX"],["401873170","2027-01-04T01:20:00Z",17,"PHI","SF","NBC"],["401873171","2027-01-05T01:15:00Z",17,"HOU","GB","ESPN"],["401873172","",18,"ATL","CAR",""],["401873173","",18,"CHI","MIN",""],["401873174","",18,"CLE","CIN",""],["401873175","",18,"DAL","WSH",""],["401873176","",18,"DET","GB",""],["401873177","",18,"JAX","IND",""],["401873178","",18,"LV","KC",""],["401873179","",18,"LAC","DEN",""],["401873180","",18,"MIA","NE",""],["401873181","",18,"NYJ","BUF",""],["401873182","",18,"PHI","NYG",""],["401873183","",18,"PIT","BAL",""],["401873184","",18,"SF","ARI",""],["401873185","",18,"SEA","LAR",""],["401873186","",18,"TB","NO",""],["401873187","",18,"TEN","HOU",""]];
+    const FALLBACK_TEAM_NAMES={
+      ARI:"Arizona Cardinals",ATL:"Atlanta Falcons",BAL:"Baltimore Ravens",BUF:"Buffalo Bills",
+      CAR:"Carolina Panthers",CHI:"Chicago Bears",CIN:"Cincinnati Bengals",CLE:"Cleveland Browns",
+      DAL:"Dallas Cowboys",DEN:"Denver Broncos",DET:"Detroit Lions",GB:"Green Bay Packers",
+      HOU:"Houston Texans",IND:"Indianapolis Colts",JAX:"Jacksonville Jaguars",KC:"Kansas City Chiefs",
+      LV:"Las Vegas Raiders",LAC:"Los Angeles Chargers",LAR:"Los Angeles Rams",MIA:"Miami Dolphins",
+      MIN:"Minnesota Vikings",NE:"New England Patriots",NO:"New Orleans Saints",NYG:"New York Giants",
+      NYJ:"New York Jets",PHI:"Philadelphia Eagles",PIT:"Pittsburgh Steelers",SF:"San Francisco 49ers",
+      SEA:"Seattle Seahawks",TB:"Tampa Bay Buccaneers",TEN:"Tennessee Titans",WSH:"Washington Commanders"
+    };
+    const FALLBACK_WEEK_DATES={
+      16:"2026-12-27T17:00:00Z",
+      17:"2027-01-03T18:00:00Z",
+      18:"2027-01-10T18:00:00Z"
+    };
+
+    function fallbackLogo(abbr){
+      return `https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/${String(abbr).toLowerCase()}.png`;
+    }
+
+    function buildEmbeddedScheduleFallback(){
+      return EMBEDDED_2026_SCHEDULE.map(([id,kickoff,week,awayAbbr,homeAbbr,network])=>{
+        const kickoffTbd=!kickoff;
+        const dateTime=kickoff||FALLBACK_WEEK_DATES[week];
+        const broadcast=network||"TBD";
+        return {
+          id,dateTime,
+          homeTeam:FALLBACK_TEAM_NAMES[homeAbbr]||homeAbbr,
+          awayTeam:FALLBACK_TEAM_NAMES[awayAbbr]||awayAbbr,
+          homeAbbr,awayAbbr,
+          homeLogo:fallbackLogo(homeAbbr),
+          awayLogo:fallbackLogo(awayAbbr),
+          homeScore:"",awayScore:"",homeRecord:"",awayRecord:"",
+          network:broadcast,
+          broadcasts:network?[{name:network,shortName:network,market:"National",type:"TV"}]:[],
+          sourceLinks:[],
+          status:"scheduled",statusDetail:kickoffTbd?"DATE / TIME TBD":"",
+          period:"",clock:"",possessionAbbr:"",
+          homeTimeouts:null,awayTimeouts:null,venue:"",
+          seasonYear:2026,seasonType:2,weekNumber:week,
+          fallbackSchedule:true,kickoffTbd
+        };
+      }).sort((a,b)=>new Date(a.dateTime)-new Date(b.dateTime));
+    }
+
+    function mergeDynamicGameState(base,update){
+      // Schedule identity/broadcast metadata remains from the long-lived season
+      // cache. Only volatile scoreboard state is refreshed.
+      const resolvedKickoff=!!base.kickoffTbd && !!update.dateTime && !/\b(?:TBD|TBA)\b/i.test(String(update.statusDetail||""));
+      return {
+        ...base,
+        dateTime:resolvedKickoff?update.dateTime:base.dateTime,
+        kickoffTbd:resolvedKickoff?false:!!base.kickoffTbd,
+        homeScore:update.homeScore,
+        awayScore:update.awayScore,
+        status:update.status,
+        statusDetail:update.statusDetail,
+        period:update.period,
+        clock:update.clock,
+        possessionAbbr:update.possessionAbbr,
+        homeTimeouts:update.homeTimeouts,
+        awayTimeouts:update.awayTimeouts,
+        homeRecord:update.homeRecord||base.homeRecord,
+        awayRecord:update.awayRecord||base.awayRecord,
+        broadcasts:update.broadcasts?.length?update.broadcasts:base.broadcasts,
+        network:update.network&&update.network!=="TBD"?update.network:base.network
+      };
+    }
+
+    function dynamicGameFingerprint(game){
+      return JSON.stringify([
+        String(game.homeScore ?? ""),
+        String(game.awayScore ?? ""),
+        String(game.status ?? ""),
+        String(game.statusDetail ?? ""),
+        String(game.period ?? ""),
+        String(game.clock ?? ""),
+        String(game.possessionAbbr ?? ""),
+        String(game.homeTimeouts ?? ""),
+        String(game.awayTimeouts ?? ""),
+        String(game.homeRecord ?? ""),
+        String(game.awayRecord ?? ""),
+        String(game.network ?? ""),
+        game.broadcasts || []
+      ]);
+    }
+
+    function scoreNumber(value){
+      if(value === undefined || value === null || value === "")return 0;
+      const parsed=Number(value);
+      return Number.isFinite(parsed)?parsed:0;
+    }
+
+    function mergeWeekState(updates){
+      if(!Array.isArray(updates)||!updates.length)return [];
+      const byId=new Map(updates.map(g=>[String(g.id),g]));
+      const changes=[];
+      allGames=allGames.map(game=>{
+        // Final games are immutable for our purposes; do not repeatedly rewrite them.
+        if(isFinalGame(game))return game;
+        const update=byId.get(String(game.id));
+        if(!update)return game;
+        const merged=mergeDynamicGameState(game,update);
+        if(dynamicGameFingerprint(game)===dynamicGameFingerprint(merged))return game;
+        const awayScored=scoreNumber(merged.awayScore)>scoreNumber(game.awayScore);
+        const homeScored=scoreNumber(merged.homeScore)>scoreNumber(game.homeScore);
+        changes.push({
+          id:String(game.id),
+          before:game,
+          after:merged,
+          awayScored,
+          homeScored,
+          scoreChanged:awayScored||homeScored,
+          statusChanged:cleanStatus(game.status)!==cleanStatus(merged.status),
+          providerChanged:String(game.network||"")!==String(merged.network||"") ||
+            JSON.stringify(game.broadcasts||[])!==JSON.stringify(merged.broadcasts||[])
+        });
+        return merged;
+      });
+      return changes;
+    }
+
+    function getCurrentWeekDescriptor(){
+      buildScheduleWeeks();
+      const current=findCurrentScheduleWeek();
+      return current?{type:current.type,week:current.week,key:current.key}:null;
+    }
+
+    async function fetchCurrentWeekState(){
+      const current=getCurrentWeekDescriptor();
+      if(!current)return [];
+
+      // Once every game in the current week is final there is no score state left
+      // worth polling.
+      const currentGames=allGames.filter(g=>scheduleWeekKey(g)===current.key);
+      if(currentGames.length && currentGames.every(isFinalGame))return [];
+
+      const url=`https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?limit=100&dates=${getSeasonYear()}&seasontype=${current.type}&week=${current.week}`;
+      try{
+        const raw=await fetchJson(url);
+        const updates=normalizeEspn(raw,new Set());
+        // Ignore already-final games before merge to minimize processing.
+        return updates.filter(update=>{
+          const existing=allGames.find(g=>String(g.id)===String(update.id));
+          return !existing || !isFinalGame(existing);
+        });
+      }catch(_){
+        return [];
+      }
+    }
+
+    async function fetchEspnSchedule(){
+      const urls = buildEspnUrls();
+      const seen = new Set();
+      let games = [];
+
+      const first = await fetchJson(urls[0]);
+      games = normalizeEspn(first, seen);
+
+      // Only fan out week-by-week when the season-level response itself is truly
+      // sparse. Using the active UI filter here can accidentally trigger ~28 requests
+      // (for example when the selected week is complete or RESULTS is active).
+      if(games.length < 40){
+        const weekResults = await Promise.allSettled(urls.slice(1).map(fetchJson));
+        for(const result of weekResults){
+          if(result.status === "fulfilled") games.push(...normalizeEspn(result.value, seen));
+        }
+      }
+      const currentPreseasonStart = new Date("2026-08-01T00:00:00");
+      return games
+        .filter(game => new Date(game.dateTime) >= currentPreseasonStart)
+        .sort((a,b) => new Date(a.dateTime) - new Date(b.dateTime));
+    }
+
+    // Thin fetch wrapper. cache:"no-store" helps avoid stale scores/status,
+    // especially while games are live.
+    async function fetchJson(url){
+      const res = await fetch(url, { cache:"no-store" });
+      if(!res.ok) throw new Error(`${res.status} ${url}`);
+      return await res.json();
+    }
+
+    // Preserve any game/event URLs ESPN supplies. Most scoreboard responses expose
+    // a game-summary URL; some feeds may also expose watch/live destinations.
+    // Provider launching prefers these exact event URLs before using generic pages.
+    function normalizeEspnSourceLinks(event, competition){
+      const rows=[...(Array.isArray(event?.links)?event.links:[]),...(Array.isArray(competition?.links)?competition.links:[])];
+      const seen=new Set();
+      return rows.map(link=>{
+        const href=String(link?.href||link?.url||"").trim();
+        if(!href||seen.has(href))return null;
+        seen.add(href);
+        const rel=Array.isArray(link?.rel)?link.rel.map(String):[];
+        return {href,text:String(link?.text||link?.shortText||""),rel};
+      }).filter(Boolean);
+    }
+
+    // Converts ESPN's nested event structure into the flat fields used by
+    // renderGameCard(). Also de-dupes games across season and week requests.
+    function normalizeEspn(raw, seen){
+      const events = Array.isArray(raw?.events) ? raw.events : [];
+      return events.map(event => {
+        const competition = event.competitions?.[0] || {};
+        const competitors = competition.competitors || [];
+        const home = competitors.find(c => c.homeAway === "home") || {};
+        const away = competitors.find(c => c.homeAway === "away") || {};
+        const broadcastEntries = Array.isArray(competition.broadcasts) ? competition.broadcasts : [];
+        const broadcasts = broadcastEntries.flatMap(entry => {
+          const names = Array.isArray(entry?.names) && entry.names.length ? entry.names : [entry?.shortName || entry?.name || ""];
+          return names.filter(Boolean).map(name => ({name:String(name),shortName:String(entry?.shortName||""),market:String(entry?.market||entry?.type?.name||""),type:String(entry?.type?.name||"")}));
+        });
+        const broadcast = broadcasts[0]?.name || "TBD";
+        const id = event.id || event.uid || `${away.team?.abbreviation}-${home.team?.abbreviation}-${event.date}`;
+        if(seen.has(id)) return null;
+        seen.add(id);
+        return {
+          id,
+          dateTime: event.date || competition.date,
+          homeTeam: home.team?.displayName || home.team?.name || "Home Team",
+          awayTeam: away.team?.displayName || away.team?.name || "Away Team",
+          homeAbbr: home.team?.abbreviation || "HOME",
+          awayAbbr: away.team?.abbreviation || "AWAY",
+          homeLogo: getLogo(home.team),
+          awayLogo: getLogo(away.team),
+          homeScore: home.score,
+          awayScore: away.score,
+          homeRecord:home.records?.[0]?.summary || "",
+          awayRecord: away.records?.[0]?.summary || "",
+          network: broadcast,
+          broadcasts,
+          sourceLinks: normalizeEspnSourceLinks(event,competition),
+          status: (event.status?.type?.state || event.status?.type?.name || "scheduled").toLowerCase(),
+          statusDetail: event.status?.type?.shortDetail || event.status?.type?.detail || "",
+          period: event.status?.period || event.status?.type?.period || "",
+          clock: event.status?.displayClock || event.status?.clock || "",
+          possessionAbbr: getPossessionAbbr(competition, home, away),
+          homeTimeouts: getTimeouts(competition, home, "home"),
+          awayTimeouts: getTimeouts(competition, away, "away"),
+          venue: competition.venue?.fullName || "",
+          seasonYear:Number(event.season?.year||raw?.season?.year||getSeasonYear()),
+          seasonType:Number(event.season?.type||raw?.season?.type||0),
+          weekNumber:Number(event.week?.number||raw?.week?.number||0)
+        };
+      }).filter(g => g && g.dateTime && !Number.isNaN(new Date(g.dateTime).getTime()));
+    }
+
+    function getLogo(team){
+      return team?.logos?.[0]?.href || team?.logo || team?.logos?.find?.(l => l.href)?.href || "";
+    }
+    function getPossessionAbbr(competition, home, away){
+      const situation = competition?.situation || {};
+      const raw = situation.possession || situation.possessionText || situation.team?.abbreviation || situation.possessionTeam?.abbreviation || situation.lastPlay?.team?.abbreviation || "";
+      if(!raw) return "";
+      const value = String(raw).toUpperCase();
+      if(value === String(home?.team?.id || "").toUpperCase()) return home?.team?.abbreviation || "";
+      if(value === String(away?.team?.id || "").toUpperCase()) return away?.team?.abbreviation || "";
+      if(value === String(home?.team?.abbreviation || "").toUpperCase()) return home?.team?.abbreviation || "";
+      if(value === String(away?.team?.abbreviation || "").toUpperCase()) return away?.team?.abbreviation || "";
+      return value.length <= 4 ? value : "";
+    }
+    function getTimeouts(competition, competitor, side){
+      const situation = competition?.situation || {};
+      const direct = competitor?.timeouts ?? competitor?.timeout ?? competitor?.timeoutsRemaining;
+      const bySide = side === "home"
+        ? (situation.homeTimeoutsRemaining ?? situation.homeTimeouts)
+        : (situation.awayTimeoutsRemaining ?? situation.awayTimeouts);
+      const value = direct ?? bySide;
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? Math.max(0, Math.min(3, parsed)) : null;
+    }
+
+    function readWeeklyCoverageCache(){
+      try{const payload=JSON.parse(localStorage.getItem(WEEKLY_COVERAGE_CACHE_KEY)||"null");return payload&&typeof payload==="object"?payload:null;}catch(err){return null;}
+    }
+    function weeklyCoverageFingerprint(payload){
+      if(!payload||typeof payload!=="object")return "";
+      const {savedAt,...content}=payload;
+      return JSON.stringify(content);
+    }
+    function saveWeeklyCoverageCache(payload){try{localStorage.setItem(WEEKLY_COVERAGE_CACHE_KEY,JSON.stringify(payload));}catch(err){} weeklyCoverageData=payload;}
+    async function refreshWeeklyCoverageData(force=false){
+      const cached=readWeeklyCoverageCache(),savedAt=Number(cached?.savedAt||0);
+      if(!force&&cached&&Date.now()-savedAt<WEEKLY_COVERAGE_CACHE_TTL_MS){weeklyCoverageData=cached;return cached;}
+      try{
+        const res=await fetch(`${WEEKLY_COVERAGE_FEED_URL}?refresh=${Date.now()}`,{cache:"no-store"}); if(!res.ok)throw new Error(`coverage ${res.status}`);
+        const body=await res.json(); if(!body||typeof body!=="object"||!body.weeks)throw new Error("invalid coverage payload");
+        const payload={...body,savedAt:Date.now()}; saveWeeklyCoverageCache(payload); return payload;
+      }catch(err){weeklyCoverageData=cached||null;return weeklyCoverageData;}
+    }
+    function gameCoverageKey(game){return `${String(game.awayAbbr||"").toUpperCase()}@${String(game.homeAbbr||"").toUpperCase()}`;}
+    function gameCoverageSlot(game){
+      const d=new Date(game.dateTime);if(Number.isNaN(d.getTime()))return "";
+      const n=classifyBroadcastNetwork(game),parent=n==="CBS"?"CBS":n.startsWith("FOX")?"FOX":"";if(!parent)return "";
+      return `${parent}:${d.getUTCHours()<19?"EARLY":"LATE"}`;
+    }
+    function getWeeklyCoverageAssignment(game){
+      // Optional, display-only enrichment. Broken or incomplete coverage data must
+      // fail OPEN: game cards, providers and the schedule never depend on it.
+      try{
+        const data=weeklyCoverageData;if(!data?.weeks||!directvMarket)return null;
+        const week=data.weeks[scheduleWeekKey(game)]||data.weeks[String(game.weekNumber||"")]||null;if(!week)return null;
+        const marketKey=Object.keys(week.markets||{}).find(k=>marketsEquivalent(k,directvMarket));if(!marketKey)return null;
+        const slot=gameCoverageSlot(game),a=(week.markets[marketKey]||{})[slot]||null;if(!a)return null;
+        const assignedGame=String(a.game||a.matchup||"").toUpperCase().replace(/\s+/g,""),current=gameCoverageKey(game);
+        return {source:String(a.source||data.source||"weekly coverage feed"),station:String(a.station||""),slot,assignedGame,match:assignedGame===current,conflict:!!assignedGame&&assignedGame!==current,updatedAt:String(data.updatedAt||"")};
+      }catch(err){
+        console.warn("Optional LOCAL coverage lookup failed; showing game without badge",err);
+        return null;
+      }
+    }
+    // Display-only: never infer a LOCAL badge from national rights, team markets,
+    // or ESPN affiliates. A positive assignment in the weekly JSON is required.
+    // Only confirmed national distribution or an explicit market-level JSON match
+    // earns a broadcast badge. Unknown coverage remains unlabelled.
+    function isConfirmedNationalBroadcast(game){
+      const network=classifyBroadcastNetwork(game);
+      if(["NBC","ESPN","PRIME","NETFLIX","PEACOCK_EXCLUSIVE","NFL_NETWORK","FOX_NATIONAL"].includes(network))return true;
+      // ABC games may be regional simulcasts; only label ABC when paired with ESPN
+      // or when the schedule explicitly marks it as a national broadcast.
+      if(network==="ABC"){
+        const names=getBroadcastNames(game).join(" | ");
+        return /\bespn\b/i.test(names) || game.nationalBroadcast===true || game.isNational===true;
+      }
+      return game.nationalBroadcast===true || game.isNational===true;
+    }
+    function renderConfirmedLocalBadge(game){
+      const assignment=getWeeklyCoverageAssignment(game);
+      if(!assignment?.match)return "";
+      const station=assignment.station?` · ${assignment.station}`:"";
+      const tooltip=escapeHtml(`Confirmed local broadcast${station}`);
+      return `<span class="badge local-confirmed" title="${tooltip}" aria-label="${tooltip}">⌂ LOCAL</span>`;
+    }
+    function updateLocalBadgesInPlace(){
+      // Coverage updates may ONLY add/remove a badge. Never re-render the
+      // schedule: that would discard cards, live state, scroll position and
+      // other UI whenever the independent JSON feed finishes loading.
+      if(!scheduleEl||!allGames.length)return;
+      const gamesById=new Map(allGames.map(game=>[String(game.id),game]));
+      scheduleEl.querySelectorAll(".game-card[data-game-id]").forEach(card=>{
+        const game=gamesById.get(card.dataset.gameId);
+        if(!game)return;
+        let badge="";
+        try{badge=card.classList.contains("results-final-card") ? "" : renderConfirmedLocalBadge(game);}catch(err){console.warn("LOCAL badge skipped",err);}
+        let top=card.querySelector(":scope > .game-top");
+        // Final result cards normally omit their empty top row, so construct a
+        // badge-only row if a confirmed LOCAL assignment arrives later.
+        if(!top&&badge){
+          top=document.createElement("div");
+          top.className="game-top";
+          top.dataset.coverageOnly="true";
+          top.innerHTML='<div class="time"></div><div class="badges"></div>';
+          card.prepend(top);
+        }
+        if(!top)return;
+        let badges=top.querySelector(".badges");
+        if(!badges&&badge){badges=document.createElement("div");badges.className="badges";top.append(badges);}
+        if(!badges)return;
+        badges.querySelectorAll(".local-confirmed").forEach(node=>node.remove());
+        if(badge)badges.insertAdjacentHTML("afterbegin",badge);
+        if(!badge&&top.dataset.coverageOnly==="true")top.remove();
+      });
+    }
+    function getLocalAvailabilityStatus(game){
+      const n=classifyBroadcastNetwork(game),weekly=getWeeklyCoverageAssignment(game);
+      if(weekly?.match)return {score:5,state:"CONFIRMED LOCAL",source:weekly.source,station:weekly.station,weekly};
+      if(weekly?.conflict)return {score:0,state:"OUT OF MARKET",source:weekly.source,station:weekly.station,weekly};
+      if(["NBC","ABC","ESPN","PRIME","NETFLIX","PEACOCK_EXCLUSIVE","NFL_NETWORK"].includes(n))return {score:4,state:"NATIONAL / STANDARD",source:"network rights",station:"",weekly:null};
+      if(["CBS","FOX_LOCAL","FOX_REGIONAL","FOX_NATIONAL"].includes(n)){
+        const broadcasts=getBroadcastNames(game),affiliateMarket=getLocalAffiliateMarket(broadcasts);
+        if(affiliateMarket&&marketsEquivalent(affiliateMarket,directvMarket))return {score:5,state:"CONFIRMED LOCAL",source:"ESPN affiliate",station:getLocalAffiliateCallsign(broadcasts),weekly:null};
+        if(affiliateMarket&&!marketsEquivalent(affiliateMarket,directvMarket))return {score:0,state:"OUT OF MARKET",source:"ESPN affiliate",station:getLocalAffiliateCallsign(broadcasts),weekly:null};
+        if(directvMarket&&gameMatchesMarketTeam(game,directvMarket))return {score:3,state:"LOCAL EXPECTED",source:"market team",station:"",weekly:null};
+        return {score:1,state:"REGIONAL UNVERIFIED",source:"weekly assignment unavailable",station:"",weekly:null};
+      }
+      return {score:2,state:"UNVERIFIED",source:"provider evidence",station:"",weekly:null};
+    }
+
+    function readFavoriteTeams(){
+      try{
+        const value=JSON.parse(localStorage.getItem(FAVORITE_TEAMS_KEY)||"[]");
+        if(!Array.isArray(value))return [];
+        return value
+          .filter(item=>item&&item.league&&item.id)
+          .map(item=>({league:String(item.league).toUpperCase(),id:String(item.id).toUpperCase(),name:String(item.name||item.id)}));
+      }catch(_){ return []; }
+    }
+    function saveFavoriteTeams(){
+      localStorage.setItem(FAVORITE_TEAMS_KEY,JSON.stringify(favoriteTeams));
+    }
+    function readFollowedGameIds(){
+      try{
+        const value=JSON.parse(localStorage.getItem(FOLLOWED_GAMES_KEY)||"[]");
+        return new Set(Array.isArray(value)?value.map(String):[]);
+      }catch(_){ return new Set(); }
+    }
+    function saveFollowedGameIds(){
+      try{localStorage.setItem(FOLLOWED_GAMES_KEY,JSON.stringify([...followedGameIds]));}catch(_){}
+    }
+    function isGameFollowed(gameId){return followedGameIds.has(String(gameId));}
+    function nativeFollowHandler(){return window.webkit?.messageHandlers?.followGame||null;}
+    function followGamePayload(game,action){
+      const kickoffEpochMs=new Date(game.dateTime||"").getTime();
+      return {
+        action,
+        gameId:String(game.id),
+        awayTeam:String(game.awayTeam||game.awayAbbr||"Away Team"),
+        homeTeam:String(game.homeTeam||game.homeAbbr||"Home Team"),
+        kickoff:String(game.dateTime||""),
+        kickoffEpochMs:Number.isFinite(kickoffEpochMs)?kickoffEpochMs:null,
+        network:String(game.network||"")
+      };
+    }
+    function sendFollowGameToNative(game,action){
+      const handler=nativeFollowHandler();
+      if(!handler||!game)return false;
+      handler.postMessage(followGamePayload(game,action));
+      return true;
+    }
+    function updateFollowBadge(gameId){
+      const id=String(gameId), followed=isGameFollowed(id);
+      document.querySelectorAll("[data-follow-game-id]").forEach(button=>{
+        if(button.dataset.followGameId!==id)return;
+        button.classList.toggle("following",followed);
+        button.setAttribute("aria-pressed",String(followed));
+        button.setAttribute("aria-label",`${followed?"Following":"Follow"} ${button.dataset.matchup||"game"}`);
+        button.innerHTML=bellIcon(followed);
+      });
+    }
+    function toggleFollowGame(event,gameId){
+      event?.preventDefault?.();
+      event?.stopPropagation?.();
+      const id=String(gameId), game=allGames.find(item=>String(item.id)===id);
+      if(!game)return;
+      if(isGameFollowed(id)){
+        followedGameIds.delete(id);
+        saveFollowedGameIds();
+        updateFollowBadge(id);
+        sendFollowGameToNative(game,"unfollow");
+        showToast("Game unfollowed");
+      }else{
+        followedGameIds.add(id);
+        saveFollowedGameIds();
+        updateFollowBadge(id);
+        const nativeSent=sendFollowGameToNative(game,"follow");
+        showToast(nativeSent?"Following game…":"Game followed");
+      }
+      lastNativeFollowSyncFingerprint="";
+      lastNativeWidgetSyncFingerprint="";
+      syncWidgetDataWithNative();
+    }
+    function syncFollowedGamesWithNative(){
+      if(!nativeFollowHandler())return;
+      const followedGames=allGames.filter(game=>isGameFollowed(game.id));
+      const fingerprint=followedGames
+        .map(game=>`${game.id}|${game.dateTime}|${cleanStatus(game.status)}`)
+        .sort()
+        .join(";");
+      if(fingerprint===lastNativeFollowSyncFingerprint)return;
+      lastNativeFollowSyncFingerprint=fingerprint;
+      followedGames.forEach(game=>sendFollowGameToNative(game,"sync"));
+    }
+    window.gridironGuideNativeFollowResult=function(result){
+      if(!result||result.action!=="follow")return;
+      if(result.scheduled){
+        showToast("Following · kickoff alert set");
+      }else if(result.reason==="permissionDenied"){
+        showToast("Following · notifications disabled in Settings");
+      }else if(result.reason==="invalidKickoff"){
+        showToast("Game followed · kickoff time unavailable");
+      }
+    };
+    function isFavoriteTeam(league,id){
+      const l=String(league||"").toUpperCase(), team=String(id||"").toUpperCase();
+      return favoriteTeams.some(item=>item.league===l&&item.id===team);
+    }
+    function isFavoriteGame(game){
+      return isFavoriteTeam("NFL",game?.awayAbbr)||isFavoriteTeam("NFL",game?.homeAbbr);
+    }
+    function nativeWidgetHandler(){return window.webkit?.messageHandlers?.syncWidgetData||null;}
+    function isNationalWidgetGame(game){
+      return ["NETFLIX","PRIME","PEACOCK_EXCLUSIVE","NFL_NETWORK","ESPN","NBC","ABC","FOX_NATIONAL"]
+        .includes(classifyBroadcastNetwork(game));
+    }
+    function syncWidgetDataWithNative(){
+      const handler=nativeWidgetHandler();
+      if(!handler||!allGames.length)return false;
+      const now=Date.now();
+      const games=allGames
+        .filter(game=>{
+          const kickoffEpochMs=new Date(game.dateTime||"").getTime();
+          return Number.isFinite(kickoffEpochMs)&&!isFinalGame(game)&&kickoffEpochMs+4*60*60*1000>now;
+        })
+        .map(game=>{
+          const kickoffEpochMs=new Date(game.dateTime).getTime();
+          return {
+            id:String(game.id),
+            kickoffEpochMs,
+            awayAbbr:String(game.awayAbbr||"AWAY").toUpperCase(),
+            homeAbbr:String(game.homeAbbr||"HOME").toUpperCase(),
+            network:String(game.network||""),
+            status:cleanStatus(game.status),
+            isFollowed:isGameFollowed(game.id),
+            isFavorite:isFavoriteGame(game),
+            isNational:isNationalWidgetGame(game),
+            isLocal:getWeeklyCoverageAssignment(game)?.match===true
+          };
+        })
+        .sort((a,b)=>a.kickoffEpochMs-b.kickoffEpochMs);
+      const fingerprint=JSON.stringify(games);
+      if(fingerprint===lastNativeWidgetSyncFingerprint)return true;
+      lastNativeWidgetSyncFingerprint=fingerprint;
+      handler.postMessage({savedAtEpochMs:Date.now(),games});
+      return true;
+    }
+    window.gridironGuideOpenGame=function(gameId){
+      const id=String(gameId||"");
+      if(!id)return true;
+      const game=allGames.find(item=>String(item.id)===id);
+      if(!game){
+        pendingNativeWidgetGameId=id;
+        return true;
+      }
+      pendingNativeWidgetGameId="";
+      selectedScheduleWeek=scheduleWeekKey(game)||selectedScheduleWeek;
+      sortMode=isFinalGame(game)?"final":"kickoff";
+      if(isLiveGame(game)){gamesSubview="live";localStorage.setItem("gridironGuide.gamesSubview.v1",gamesSubview);}
+      localStorage.setItem("gridironGuide.sortMode",sortMode);
+      syncDashboardNavigation();
+      renderWeekNavigator();
+      renderSchedule();
+      requestAnimationFrame(()=>{
+        const card=findVisibleGameCard(id);
+        if(!card)return;
+        card.scrollIntoView({behavior:"smooth",block:"center"});
+        card.classList.remove("widget-opened");
+        void card.offsetWidth;
+        card.classList.add("widget-opened");
+        window.setTimeout(()=>card.classList.remove("widget-opened"),1250);
+      });
+      return true;
+    };
+    function renderFavoriteTeamSettings(){
+      const select=document.querySelector("#favoriteTeamSelect");
+      const list=document.querySelector("#favoriteTeamList");
+      if(select){
+        const selected=select.value;
+        select.innerHTML=`<option value="">Choose an NFL team…</option>`+NFL_TEAMS
+          .filter(team=>!isFavoriteTeam(team.league,team.id))
+          .map(team=>`<option value="${escapeHtml(team.id)}">${escapeHtml(team.name)}</option>`).join("");
+        if([...select.options].some(option=>option.value===selected))select.value=selected;
+      }
+      if(list){
+        list.innerHTML=favoriteTeams.length
+          ? favoriteTeams.map(team=>`<button class="favorite-team-chip" type="button" data-favorite-league="${escapeHtml(team.league)}" data-favorite-team="${escapeHtml(team.id)}" title="Remove ${escapeHtml(team.name)}">★ ${escapeHtml(team.name)} <span class="remove">×</span></button>`).join("")
+          : `<span class="favorite-team-empty">No favorite teams yet.</span>`;
+      }
+    }
+    function addFavoriteTeam(league,id){
+      const team=NFL_TEAMS.find(item=>item.league===league&&item.id===id);
+      if(!team||isFavoriteTeam(league,id))return;
+      favoriteTeams=[...favoriteTeams,{league:team.league,id:team.id,name:team.name}];
+      saveFavoriteTeams();renderFavoriteTeamSettings();renderSchedule();
+    }
+    function removeFavoriteTeam(league,id){
+      favoriteTeams=favoriteTeams.filter(item=>!(item.league===league&&item.id===id));
+      saveFavoriteTeams();renderFavoriteTeamSettings();renderSchedule();
+    }
+
+    // Card visibility is determined ONLY by selected week and Games/Live/Results
+    // status filters. LOCAL coverage is strictly presentational, never a filter.
+    function getDisplayGames(sourceGames = allGames){
+      const now = new Date();
+      const cutoff = new Date(now.getTime() - 4 * 60 * 60 * 1000);
+      const currentPreseasonStart = new Date("2026-08-01T00:00:00");
+      const baseAll = [...sourceGames].filter(game => new Date(game.dateTime) >= currentPreseasonStart);
+      const base = selectedScheduleWeek
+        ? baseAll.filter(g => scheduleWeekKey(g) === selectedScheduleWeek)
+        : baseAll;
+      let selected;
+      if(sortMode === "kickoff" && gamesSubview === "live"){
+        selected = base.filter(isLiveGame).sort(sortByDate);
+      } else if(sortMode === "kickoff" && gamesSubview === "local"){
+        // Only an explicit, confirmed CBS/FOX market assignment can opt into
+        // this user-selected view. Missing data never filters All Games.
+        selected = base.filter(g=>(isScheduledGame(g)||isLiveGame(g))&&getWeeklyCoverageAssignment(g)?.match===true)
+          .sort(sortByDate);
+      } else if(sortMode === "scheduled"){
+        selected = base.filter(g => isScheduledGame(g) && new Date(g.dateTime) >= cutoff).sort(sortByDate);
+      } else if(sortMode === "final"){
+        selected = base.filter(isFinalGame).sort((a,b) => new Date(b.dateTime) - new Date(a.dateTime));
+      } else if(sortMode === "live"){
+        // LIVE is a true filter: do not include scheduled or final games.
+        selected = base.filter(isLiveGame).sort(sortByDate);
+      } else {
+        // GAMES is the active schedule, not a duplicate results view.
+        // Show scheduled + live games only. Once the week is fully complete,
+        // completed games remain exclusively under RESULTS.
+        selected = base
+          .filter(g => !isFinalGame(g))
+          .sort(sortByDate);
+      }
+      return selected.slice(0, MAX_GAMES_TO_SHOW);
+    }
+    function sortByDate(a,b){ return new Date(a.dateTime) - new Date(b.dateTime); }
+    function isLiveGame(game){ const s = cleanStatus(game.status); return s === "live"; }
+    function isFinalGame(game){ return cleanStatus(game.status) === "final"; }
+    function isScheduledGame(game){ return cleanStatus(game.status) === "scheduled"; }
+    function groupByDay(games){
+      return games.reduce((acc, game) => {
+        const key = game.kickoffTbd
+          ? "DATE / TIME TBD"
+          : new Date(game.dateTime).toLocaleDateString([], { weekday:"long", month:"short", day:"numeric" });
+        acc[key] ||= [];
+        acc[key].push(game);
+        return acc;
+      }, {});
+    }
+
+    function remainingConfirmedLocalGames(){
+      // The Local filter is offered only for this week, selected TV market,
+      // and confirmed broadcasts still scheduled or in progress.
+      if(!selectedScheduleWeek||!directvMarket||!weeklyCoverageData?.weeks)return [];
+      return allGames.filter(g=>scheduleWeekKey(g)===selectedScheduleWeek &&
+        (isScheduledGame(g)||isLiveGame(g)) && getWeeklyCoverageAssignment(g)?.match===true);
+    }
+    function syncGamesSubviewControls(localCount=remainingConfirmedLocalGames().length){
+      if(sortMode!=="kickoff")return;
+      const viewSwitch=scheduleEl.querySelector(".games-view-switch");
+      if(!viewSwitch)return;
+      const existingLocal=viewSwitch.querySelector('[data-games-view="local"]');
+      if(!existingLocal){
+        const button=document.createElement("button");
+        button.type="button";
+        button.dataset.gamesView="local";
+        button.innerHTML='Local <span class="games-count games-local-count"></span>';
+        viewSwitch.append(button);
+      }
+      viewSwitch.classList.add("has-local");
+      // Keep Local selected even when its last game completes. The dashboard
+      // displays a dedicated empty state rather than unexpectedly opening Games.
+      viewSwitch.dataset.selected=gamesSubview;
+      const title=scheduleEl.querySelector(".games-view-title");
+      if(title)title.textContent=" · Games";
+      viewSwitch.querySelectorAll("[data-games-view]").forEach(button=>{
+        const active=button.dataset.gamesView===gamesSubview;
+        button.classList.toggle("active",active);
+        button.setAttribute("aria-pressed",String(active));
+      });
+      const scoped=selectedScheduleWeek?allGames.filter(g=>scheduleWeekKey(g)===selectedScheduleWeek):allGames;
+      const liveCount=scoped.filter(isLiveGame).length;
+      const allCount=scoped.filter(g=>!isFinalGame(g)).length;
+      for(const [view,count] of Object.entries({all:allCount,live:liveCount,local:localCount})){
+        const countEl=viewSwitch.querySelector(`.games-${view}-count`);
+        if(countEl){countEl.textContent=String(count);countEl.classList.toggle("is-zero",count===0);}
+        const button=viewSwitch.querySelector(`[data-games-view="${view}"]`);
+        if(button)button.setAttribute("aria-label",`${view[0].toUpperCase()+view.slice(1)} games: ${count}`);
+      }
+      viewSwitch.classList.toggle("has-live",liveCount>0);
+    }
+
+    // Division standings are derived exclusively from the season schedule already
+    // used by game cards. No separate standings network request is made.
+    const NFL_DIVISIONS={
+      AFC:{East:["BUF","MIA","NE","NYJ"],North:["BAL","CIN","CLE","PIT"],South:["HOU","IND","JAX","TEN"],West:["DEN","KC","LAC","LV"]},
+      NFC:{East:["DAL","NYG","PHI","WSH"],North:["CHI","DET","GB","MIN"],South:["ATL","CAR","NO","TB"],West:["ARI","LAR","SF","SEA"]}
+    };
+    function calculateDivisionStandings(){
+      const teams=new Map(NFL_TEAMS.map(t=>[t.id,{...t,overall:[0,0,0],division:[0,0,0],games:0}]));
+      const membership=new Map();
+      for(const [conf,divisions] of Object.entries(NFL_DIVISIONS))for(const [division,ids] of Object.entries(divisions))for(const id of ids)membership.set(id,conf+" "+division);
+      const seen=new Set();
+      for(const g of allGames){
+        if(Number(g.seasonType)!==2||Number(g.seasonYear||getSeasonYear())!==getSeasonYear()||!isFinalGame(g)||!hasScore(g))continue;
+        const away=teams.get(String(g.awayAbbr||"").toUpperCase());
+        const home=teams.get(String(g.homeAbbr||"").toUpperCase());
+        if(!away||!home||away.id===home.id||seen.has(String(g.id)))continue;
+        const a=Number(g.awayScore),h=Number(g.homeScore);
+        if(!Number.isFinite(a)||!Number.isFinite(h))continue;
+        seen.add(String(g.id));
+        const indexA=a>h?0:a<h?1:2,indexH=h>a?0:h<a?1:2;
+        away.overall[indexA]++;home.overall[indexH]++;away.games++;home.games++;
+        if(membership.get(away.id)===membership.get(home.id)){
+          away.division[indexA]++;home.division[indexH]++;
+        }
+      }
+      const pct=t=>(t.overall[0]+t.overall[2]/2)/Math.max(1,t.games);
+      const groups=[];
+      for(const [conf,divisions] of Object.entries(NFL_DIVISIONS))for(const [direction,ids] of Object.entries(divisions)){
+        const entries=ids.map(id=>teams.get(id)).sort((a,b)=>pct(b)-pct(a)||(b.division[0]+b.division[2]/2)/Math.max(1,b.division.reduce((x,y)=>x+y,0))-(a.division[0]+a.division[2]/2)/Math.max(1,a.division.reduce((x,y)=>x+y,0))||a.name.localeCompare(b.name));
+        groups.push({conference:conf,name:conf+" "+direction,entries});
+      }
+      return {groups,completed:seen.size,seasonGames:allGames.filter(g=>Number(g.seasonType)===2&&Number(g.seasonYear||getSeasonYear())===getSeasonYear()).length};
+    }
+    function renderDivisionStandings(){
+      const host=scheduleEl.querySelector(":scope > .results-content");
+      if(!host||sortMode!=="final"||resultsSubview!=="games"||resultsDivisionView!=="divisions")return;
+      const {groups,completed,seasonGames}=calculateDivisionStandings();
+      const fmt=a=>a.join("–");
+
+      host.dataset.display="divisions";
+      host.innerHTML=`${completed===0?'<p class="division-note">No completed regular-season games available.</p>':seasonGames<200?'<p class="division-note">Partial season data — standings may be incomplete.</p>':''}`+[resultsConferenceView].map(conf=>{
+        const divisions=groups.filter(g=>g.conference===conf);
+        return `<section class="division-conference"><div class="division-grid">${divisions.map((group,index)=>`<div class="division-card">${index===0?`<div class="division-card-header"><div class="division-conference-toggle" role="group" aria-label="Conference"><button type="button" data-results-conference="AFC" class="${resultsConferenceView==="AFC"?"active":""}" aria-pressed="${resultsConferenceView==="AFC"}">AFC</button><button type="button" data-results-conference="NFC" class="${resultsConferenceView==="NFC"?"active":""}" aria-pressed="${resultsConferenceView==="NFC"}">NFC</button></div></div>`:""}<table class="division-table"><thead><tr><th scope="col" aria-label="${escapeHtml(group.name)} teams" class="division-card-title">${escapeHtml(group.name)}</th><th scope="col">W–L–T</th><th>DIV</th></tr></thead><tbody>${group.entries.map(e=>`<tr><td><span class="division-team-cell">${renderTeamHelmet(e.id,e.name,"away")}<span class="division-team-name">${escapeHtml(e.name)}</span></span></td><td>${fmt(e.overall)}</td><td class="division-record">${fmt(e.division)}</td></tr>`).join("")}</tbody></table></div>`).join("")}</div></section>`;
+      }).join("");
+    }
+
+    function renderSchedule(){
+      if(sortMode==="live"){sortMode="kickoff";gamesSubview="live";}
+      const remainingLocalCount=remainingConfirmedLocalGames().length;
+      const previewScoped=selectedScheduleWeek?allGames.filter(g=>scheduleWeekKey(g)===selectedScheduleWeek):allGames;
+      for(const [key,n] of Object.entries({all:previewScoped.filter(g=>!isFinalGame(g)).length,live:previewScoped.filter(isLiveGame).length,local:remainingLocalCount,results:previewScoped.filter(isFinalGame).length})){const el=document.querySelector(`[data-preview-count="${key}"]`);if(el)el.textContent=n;}
+      const games = getDisplayGames();
+      updateWeekRange(games);
+      updateFilterCounts();
+      syncDashboardNavigation();
+      syncFollowedGamesWithNative();
+      syncWidgetDataWithNative();
+      let resultsContentEl=null;
+      if(sortMode==="kickoff"){
+        const selectedWeek=scheduleWeeks.find(w=>w.key===selectedScheduleWeek);
+        const weekTitle=selectedWeek?weekLabel(selectedWeek):"Games";
+        const weekKey=String(selectedScheduleWeek||"");
+        const existingHeader=scheduleEl.querySelector(":scope > .games-section-header");
+        const existingContent=scheduleEl.querySelector(":scope > .games-content");
+        if(!existingHeader||!existingContent||existingHeader.dataset.weekKey!==weekKey){
+          const subnav=`<div class="results-view-switch games-view-switch" role="group" aria-label="Games views" data-selected="${gamesSubview}"><button type="button" data-games-view="all" aria-label="All games">All <span class="games-count games-all-count"></span></button><button type="button" data-games-view="live"><span class="live-filter-dot"></span>Live <span class="games-count games-live-count"></span></button></div>`;
+          scheduleEl.innerHTML=`<div class="results-section-header games-section-header" data-week-key="${escapeHtml(weekKey)}">${subnav}</div><div class="games-content"></div>`;
+        }
+        syncGamesSubviewControls(remainingLocalCount);
+        resultsContentEl=scheduleEl.querySelector(":scope > .games-content");
+      }
+      if(sortMode==="final"){
+        const selectedWeek=scheduleWeeks.find(w=>w.key===selectedScheduleWeek);
+        const weekTitle=selectedWeek?weekLabel(selectedWeek):"Results";
+        const weekKey=String(selectedScheduleWeek||"");
+        const existingHeader=scheduleEl.querySelector(":scope > .results-section-header");
+        const existingContent=scheduleEl.querySelector(":scope > .results-content");
+        // Keep the actual toggle DOM mounted while switching between Games and
+        // Top 10. Rebuilding the control on every click prevented CSS motion.
+        if(!existingHeader||!existingContent||existingHeader.dataset.weekKey!==weekKey||existingContent.dataset.owner!==resultsSubview){
+          const subnav=resultsSubview==="games"?`<div class="results-inline-switch" role="group" aria-label="Results view"><button type="button" data-results-division="weekly" class="${resultsDivisionView==="weekly"?"active":""}">Weekly Games</button><button type="button" data-results-division="divisions" class="${resultsDivisionView==="divisions"?"active":""}">Divisions</button></div>`:`<div class="fantasy-view-top results-inline-switch" role="group" aria-label="Fantasy view"><button type="button" data-fantasy-mode="leaders" class="${weeklyFantasyMode==="leaders"?"active":""}" aria-pressed="${weeklyFantasyMode==="leaders"}">Leaders</button><button type="button" data-fantasy-mode="waivers" class="${weeklyFantasyMode==="waivers"?"active":""}" aria-pressed="${weeklyFantasyMode==="waivers"}">Waivers</button></div>`;
+          scheduleEl.innerHTML=`<div class="results-section-header" data-week-key="${escapeHtml(weekKey)}">${subnav}</div><div class="results-content" data-owner="${resultsSubview}"></div>`;
+        }
+        scheduleEl.querySelectorAll("[data-results-division]").forEach(button=>{
+          const active=button.dataset.resultsDivision===resultsDivisionView;
+          button.classList.toggle("active",active);
+          button.setAttribute("aria-pressed",String(active));
+        });
+        const viewSwitch=scheduleEl.querySelector(".results-view-switch");
+        if(viewSwitch)viewSwitch.dataset.selected=resultsSubview;
+        const resultsHeaderTitle=scheduleEl.querySelector(".results-view-title");
+        if(resultsHeaderTitle)resultsHeaderTitle.textContent=resultsSubview==="fantasy"?" · Fantasy Leaders":" · Games";
+        viewSwitch?.querySelectorAll("[data-results-view]").forEach(button=>{
+          const active=button.dataset.resultsView===resultsSubview;
+          button.classList.toggle("active",active);
+          button.setAttribute("aria-pressed",String(active));
+        });
+        resultsContentEl=scheduleEl.querySelector(":scope > .results-content");
+        if(resultsSubview==="fantasy"){
+          scheduleEl.querySelector(":scope > .results-division-toggle")?.remove();
+          resultsContentEl.dataset.display="fantasy";
+        }
+        if(resultsSubview==="games"){
+          resultsContentEl.dataset.display=resultsDivisionView;
+          // Conference filters live inside the first division card header.
+          scheduleEl.querySelector(":scope > .results-division-toggle")?.remove();
+          syncResultsNavMenu();
+          if(resultsDivisionView==="divisions"){
+            resultsContentEl.dataset.owner="games";
+            resultsContentEl.dataset.display="divisions";
+            // Render synchronously, replacing any previously mounted game cards.
+            renderDivisionStandings();
+            return;
+          }
+        }
+        if(resultsSubview==="fantasy"){
+          resultsContentEl.innerHTML=`<section class="weekly-leaders" id="weeklyFantasy" data-fantasy-mode="${weeklyFantasyMode}"><div class="weekly-controls"><div class="weekly-position" role="group" aria-label="Fantasy position filters">${["ALL","QB","RB","WR","TE","K"].map(pos=>`<button type="button" data-weekly-position="${pos}" class="${weeklyFantasyPosition===pos?"active":""}" aria-pressed="${weeklyFantasyPosition===pos}">${pos}</button>`).join("")}</div><div class="weekly-subcontrols"><div class="fantasy-mode-alerts">${nativeWaiverReminderHandler()?`<button type="button" class="waiver-reminder-quick" data-waiver-reminder-quick aria-label="Enable weekly waiver reminders" aria-pressed="false" title="Weekly waiver reminders · Tuesdays at 6 PM Pacific"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg></button>`:''}</div><button type="button" class="weekly-scoring-pill" data-cycle-scoring="true" aria-label="Change fantasy scoring format">${WEEKLY_SCORING_MODES.find(m=>m.key===weeklyScoringMode).label} ↻</button><span class="waiver-mode-meta" id="waiverModeMeta" title="Estimated rostered level; Low = more likely available, High = less likely available">Rostered</span></div></div><div id="weeklyFantasyContent" aria-live="polite">Loading weekly player stats…</div></section>`;
+          syncWaiverReminderQuickControl();
+          if(weeklyFantasyMode==="waivers"){
+            renderWaivers();
+            loadWaivers();
+          }else{
+            loadWeeklyFantasy();
+          }
+          return;
+        }
+      }
+      if(!games.length){
+        const scoped = selectedScheduleWeek ? allGames.filter(g=>scheduleWeekKey(g)===selectedScheduleWeek) : allGames;
+        const allFinal = scoped.length > 0 && scoped.every(isFinalGame);
+        const emptyContent=sortMode==="kickoff"&&gamesSubview==="live"
+          ? `<section class="empty"><h2>No games live right now</h2><p>Check Games for upcoming matchups.</p></section>`
+          : sortMode==="kickoff"&&gamesSubview==="local"
+          ? `<section class="empty"><h2>No local games remaining</h2><p>No upcoming or live local games are confirmed for this week. Check Results for completed matchups.</p></section>`
+          : allFinal && sortMode === "kickoff"
+          ? `<section class="empty week-complete-cta" role="button" tabindex="0" data-open-results="true" aria-label="Week complete. Open Results to view scores."><h2>Week Complete</h2><p>All games are final. Tap to open RESULTS and view scores.</p></section>`
+          : `<section class="empty"><h2>No games found</h2><p>Try another filter or refresh the schedule.</p></section>`;
+        if(resultsContentEl)resultsContentEl.innerHTML=emptyContent;
+        else scheduleEl.innerHTML=emptyContent;
+        return;
+      }
+      const groups = groupByDay(games);
+      const gamesContent=Object.entries(groups).map(([day, dayGames]) => {
+        // Game cards already show their day and kickoff time; keep day as an
+        // accessible group name without duplicating it visually above the cards.
+        const completedDay=sortMode==="final" && dayGames.every(isFinalGame);
+        return `<section class="day-group${completedDay?" completed-results-group":""}" aria-label="${escapeHtml(day)}">
+          <div class="games">${dayGames.map(renderGameCard).join("")}</div>
+        </section>`;
+      }).join("");
+      if(resultsContentEl && sortMode==="final" && resultsSubview==="games" && resultsDivisionView==="divisions")return;
+      if(resultsContentEl){resultsContentEl.dataset.display="weekly";resultsContentEl.innerHTML=gamesContent;}
+      else scheduleEl.innerHTML=gamesContent;
+      hydrateFantasyBlocks(games);
+      scheduleLiveRefresh();
+      if(pendingNativeWidgetGameId){
+        const gameId=pendingNativeWidgetGameId;
+        pendingNativeWidgetGameId="";
+        setTimeout(()=>window.gridironGuideOpenGame(gameId),0);
+      }
+    }
+
+    function getPreferredProviderForGame(providerKeys){
+      if(!providerKeys.length) return "";
+      if(preferredProvider !== "auto" && providerKeys.includes(preferredProvider)) return preferredProvider;
+      // NFL Network is visually consolidated under NFL+.
+      if(preferredProvider === "nflplus" && providerKeys.includes("nflnetwork")) return "nflnetwork";
+      return providerKeys[0];
+    }
+
+    const MEDIA_PLAY_ICON='<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 3.8 20 12 6 20.2Z"/></svg>';
+    const MEDIA_HEADPHONES_ICON='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 14v-3a8.5 8.5 0 0 1 17 0v3"/><rect x="2.5" y="13" width="4.5" height="8" rx="1.5"/><rect x="17" y="13" width="4.5" height="8" rx="1.5"/></svg>';
+    const MEDIA_CHEVRON='<svg class="media-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 9 7 7 7-7"/></svg>';
+    // Verified 2026 team radio directory. URLs are official team broadcast pages or
+    // verified broadcaster station player pages, not scraped/unauthorized audio streams.
+    // Station game audio may be region-restricted or replaced by other programming.
+    // This directory is independent of Watch/provider routing and may be refreshed seasonally.
+    const RADIO_STATIONS=Object.freeze({"ARI":{"name":"Arizona Sports 98.7","short":"Arizona 98.7","url":"https://www.azcardinals.com/gameday/how-to-listen","type":"team-radio"},"ATL":{"name":"92.9 The Game","short":"92.9 The Game","url":"https://www.iheart.com/live/92-9-the-game-10795/","type":"station"},"BAL":{"name":"98 Rock / WBAL","short":"98 Rock","url":"https://www.baltimoreravens.com/broadcast/gameday-radio/","type":"team-radio"},"BUF":{"name":"97 Rock WGRF","short":"97 Rock","url":"https://www.iheart.com/live/97-rock-5355/","type":"station"},"CAR":{"name":"99.7 The Fox","short":"99.7 The Fox","url":"https://www.panthers.com/audio/panthers-radio-24-hours","type":"team-radio"},"CHI":{"name":"ESPN 1000","short":"ESPN 1000","url":"https://www.iheart.com/live/espn-1000-7907/","type":"station"},"CIN":{"name":"700 WLW","short":"700 WLW","url":"https://www.iheart.com/live/newsradio-700-wlw-1713/","type":"station"},"CLE":{"name":"92.3 The Fan","short":"92.3 The Fan","url":"https://www.iheart.com/live/923-the-fan-10821/","type":"station"},"DAL":{"name":"105.3 The Fan","short":"105.3 The Fan","url":"https://www.iheart.com/live/1053-the-fan-10840/","type":"station"},"DEN":{"name":"KOA 850 / 94.1","short":"KOA 850","url":"https://www.iheart.com/live/850-941-koa-389/","type":"station"},"DET":{"name":"97.1 The Ticket","short":"97.1 The Ticket","url":"https://www.iheart.com/live/971-the-ticket-10827/","type":"station"},"GB":{"name":"95.7 BIG FM / Packers Radio","short":"95.7 BIG FM","url":"https://www.packers.com/video/radio-network","type":"team-radio"},"HOU":{"name":"95.7 The Fan","short":"95.7 The Fan","url":"https://www.iheart.com/live/957-the-fan-10864/","type":"station"},"IND":{"name":"107.5 The Fan","short":"107.5 The Fan","url":"https://www.iheart.com/live/1075-the-fan-6056/","type":"station"},"JAX":{"name":"1010XL / 92.5 FM","short":"1010XL","url":"https://www.jaguars.com/broadcast/","type":"radio-info","note":"1010XL does not stream live Jaguars game audio; listen on AM/FM locally or use NFL+."},"KC":{"name":"96.5 The Fan","short":"96.5 The Fan","url":"https://www.chiefs.com/listen/","type":"team-radio"},"LV":{"name":"Raider Nation Radio 920 / KOMP 92.3","short":"Raider 920","url":"https://www.raiders.com/audio/live-gameday-radio","type":"team-radio"},"LAC":{"name":"KFI AM 640 / Chargers Radio","short":"KFI 640","url":"https://www.chargers.com/live-audio/game","type":"team-radio"},"LAR":{"name":"ESPN LA 710","short":"ESPN LA 710","url":"https://www.audacy.com/stations/espnla","type":"station"},"MIA":{"name":"Fox Sports 940 / BIG 105.9","short":"Fox Sports 940","url":"https://www.iheart.com/live/fox-sports-940-565/","type":"station"},"MIN":{"name":"KFAN 100.3","short":"KFAN 100.3","url":"https://www.iheart.com/live/kfan-fm-1003-1209/","type":"station"},"NE":{"name":"98.5 The Sports Hub","short":"98.5 Sports Hub","url":"https://www.iheart.com/live/985-the-sports-hub-8808/","type":"station"},"NO":{"name":"WWL 870 / 105.3","short":"WWL 870","url":"https://www.iheart.com/live/870-1053-wwl-10981/","type":"station"},"NYG":{"name":"WFAN 101.9 / 660","short":"WFAN 101.9","url":"https://www.iheart.com/live/sportsradio-1019-66-wfan-10930/","type":"station"},"NYJ":{"name":"Q104.3","short":"Q104.3","url":"https://www.iheart.com/live/q1043-1465/","type":"station"},"PHI":{"name":"SportsRadio 94WIP","short":"94 WIP","url":"https://www.iheart.com/live/sportsradio-94wip-10934/","type":"station"},"PIT":{"name":"102.5 WDVE","short":"102.5 DVE","url":"https://www.iheart.com/live/1025-dve-2017/","type":"station"},"SF":{"name":"KNBR 680 / 104.5","short":"KNBR 680","url":"https://www.iheart.com/live/680-1045-knbr-5530/","type":"station"},"SEA":{"name":"Seattle Sports 710","short":"710 Seattle","url":"https://www.iheart.com/live/seattle-sports-710-11726/","type":"station"},"TB":{"name":"98ROCK 97.9","short":"98ROCK","url":"https://www.iheart.com/live/98rock-tampa-bay-697/","type":"station"},"TEN":{"name":"104.5 The Zone","short":"104.5 The Zone","url":"https://www.iheart.com/live/1045-the-zone-5453/","type":"station"},"WSH":{"name":"BIG 100","short":"BIG 100","url":"https://www.iheart.com/live/big-100-2505/","type":"station"}});
+    const RADIO_ABBR_ALIASES={WSH:'WSH',WAS:'WSH',JAC:'JAX',LA:'LAR',OAK:'LV'};
+    function radioStationForAbbr(abbr){
+      const key=String(abbr||'').toUpperCase();
+      return RADIO_STATIONS[RADIO_ABBR_ALIASES[key]||key]||null;
+    }
+    // Home call first, away call second; NFL+ always offers the two audio calls
+    // when a station's own stream doesn't carry the game in the listener's market.
+    function radioOptionsForGame(game){
+      const teams=[
+        {abbr:game.homeAbbr,team:teamShortName(game.homeTeam,game.homeAbbr),side:'Home'},
+        {abbr:game.awayAbbr,team:teamShortName(game.awayTeam,game.awayAbbr),side:'Away'}
+      ];
+      const options=teams.map(t=>{
+        const s=radioStationForAbbr(t.abbr);
+        return s?{label:s.short,name:s.name,url:s.url,team:t.team,side:t.side,
+          type:s.type,caption:s.type==='radio-info'?'AM/FM info ↗':'Station ↗',note:s.note||''}:null;
+      }).filter(Boolean);
+      const nflAudio={label:'NFL+ Audio',name:'NFL+ · Home & Away Audio',url:'https://www.nfl.com/plus',
+        team:'NFL+',side:'Any market',type:'subscription',caption:'Subscription ↗'};
+      // Don't send a Jaguars listener to a station player that explicitly mutes games.
+      // Put NFL+ first when the home station is information-only.
+      if(options[0]?.type==='radio-info')options.unshift(nflAudio);
+      else options.push(nflAudio);
+      return options;
+    }
+    // Compact on-card radio identifier; the expanded list retains full station
+    // names and the original links. Never label NFL+ as SiriusXM unless the
+    // selected destination actually points to SiriusXM.
+    function compactRadioLabel(label){
+      const labels={
+        'Arizona 98.7':'98.7',
+        '92.9 The Game':'92.9',
+        '98 Rock':'98 ROCK',
+        '97 Rock':'97 ROCK',
+        '99.7 The Fox':'99.7 FOX',
+        'ESPN 1000':'ESPN 1000',
+        '700 WLW':'700 WLW',
+        '92.3 The Fan':'92.3 FAN',
+        '105.3 The Fan':'105.3 FAN',
+        'KOA 850':'KOA 850',
+        '97.1 The Ticket':'97.1',
+        '95.7 BIG FM':'95.7 BIG',
+        '95.7 The Fan':'95.7 FAN',
+        '107.5 The Fan':'107.5 FAN',
+        '1010XL':'1010XL',
+        '96.5 The Fan':'96.5 FAN',
+        'Raider 920':'920 AM',
+        'KFI 640':'KFI 640',
+        'ESPN LA 710':'ESPN 710',
+        'Fox Sports 940':'940 AM',
+        'KFAN 100.3':'KFAN',
+        '98.5 Sports Hub':'98.5 HUB',
+        'WWL 870':'WWL 870',
+        'WFAN 101.9':'WFAN',
+        'Q104.3':'Q104.3',
+        '94 WIP':'94 WIP',
+        '102.5 DVE':'WDVE',
+        'KNBR 680':'KNBR',
+        '710 Seattle':'710 AM',
+        '98ROCK':'98ROCK',
+        '104.5 The Zone':'104.5',
+        'BIG 100':'BIG 100',
+        'NFL+ Audio':'NFL+',
+        'SiriusXM':'SIRIUS',
+        'SiriusXM NFL Radio':'SIRIUS'
+      };
+      return labels[label]||label;
+    }
+    function mediaControl(type,label,cssClass,icon,game,providerKey,hasAlternatives=true){
+      const launch=type==='watch'
+        ? `openProvider(${JSON.stringify(providerKey)}, ${JSON.stringify(game).replace(/'/g,"&#39;")})`
+        : `openRadioForGame(${JSON.stringify(game).replace(/'/g,"&#39;")},0)`;
+      const dropdown=hasAlternatives
+        ? `<button class="media-expand" type="button" aria-label="Show ${type} options" aria-expanded="false" onclick="toggleMediaOptions(this)">${MEDIA_CHEVRON}</button>`
+        : '';
+      return `<div class="media-control ${type}" data-media-type="${type}"><button class="media-launch" type="button" onclick='${launch}' aria-label="${type==='watch'?'Watch on':'Listen on'} ${escapeHtml(label)}"><span class="media-icon">${icon}</span><span class="media-name ${cssClass}">${escapeHtml(label)}</span></button>${dropdown}</div>`;
+    }
+    function renderMediaActions(game,providerKeys,providerKey){
+      if(!providerKeys.length&&!showRadioBroadcasts)return '';
+      const radio=radioOptionsForGame(game);
+      // The selected provider is already shown on the primary Watch button;
+      // reserve its dropdown for alternative destinations only.
+      const watchAlternatives=providerKeys.filter(key=>key!==providerKey);
+      const watch=providerKeys.length?mediaControl('watch',providerIconLabel(providerKey),`media-provider-${providerKey}`,MEDIA_PLAY_ICON,game,providerKey,watchAlternatives.length>0):'';
+      // Match Watch: the station name/headphones launch the recommended radio
+      // destination; the separate lower-right chevron expands the same options.
+      // Keep existing openRadioForGame() and Watch's openProvider() untouched.
+      const listen=showRadioBroadcasts&&radio.length
+        ? mediaControl('listen',compactRadioLabel(radio[0].label),'media-station-label',MEDIA_HEADPHONES_ICON,game)
+        : '';
+      const gameArg=JSON.stringify(game).replace(/'/g,"&#39;");
+      const watchOptions=watchAlternatives.length?`<div class="media-panel" data-panel="watch" hidden>${watchAlternatives.map(key=>`<button type="button" class="media-option" onclick='openProvider(${JSON.stringify(key)}, ${gameArg})'><span class="media-network-pill media-provider-${key}">${escapeHtml(providerIconLabel(key))}</span><small>↗</small></button>`).join('')}</div>`:'';
+      // Radio is intentionally more descriptive: keep the recommended station
+      // as well as the away-team call and NFL+ in the menu, with full names.
+      const listenOptions=showRadioBroadcasts?`<div class="media-panel" data-panel="listen" hidden>${radio.map((station,i)=>{
+        const identity=station.type==='subscription'?'NFL+ · GAME AUDIO'
+          : station.type==='radio-info'?`${station.team} · RADIO INFORMATION`
+          : `${station.team} · ${station.side==='Home'?'OFFICIAL HOME RADIO':'OFFICIAL AWAY RADIO'}`;
+        return `<button type="button" class="media-option" onclick='openRadioForGame(${gameArg},${i})'><span class="media-radio-detail"><span class="media-radio-team">${escapeHtml(identity)}</span><span class="media-radio-station">${escapeHtml(station.name)}</span></span><small>${escapeHtml(station.caption)}</small></button>`;
+      }).join('')}<div class="media-radio-notice">Game audio may be limited by market. NFL+ requires a subscription.</div></div>`:'';
+      return `<div class="media-actions${!listen||!watch?' watch-only':''}">${watch}${listen}${watchOptions}${listenOptions}</div>`;
+    }
+    // Lightweight dropdown feedback: animate only compositor-friendly visual
+    // properties. The old height animation reflowed the game-card stack every
+    // frame and could stutter on phones. Navigation handlers are unaffected.
+    function setMediaPanelVisibility(panel,open,animate=true){
+      if(!panel)return;
+      if(panel._mediaTransition){panel._mediaTransition.cancel();panel._mediaTransition=null;}
+      const reduced=window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+      if(!animate||reduced||!panel.animate){panel.hidden=!open;return;}
+      if(open){
+        panel.hidden=false;
+        const transition=panel.animate([
+          {opacity:0,transform:'translate3d(0,-3px,0) scaleY(.975)'},
+          {opacity:1,transform:'translate3d(0,0,0) scaleY(1)'}
+        ],{duration:130,easing:'ease-out'});
+        panel._mediaTransition=transition;
+        transition.onfinish=()=>{if(panel._mediaTransition===transition)panel._mediaTransition=null;};
+      }else if(!panel.hidden){
+        const transition=panel.animate([
+          {opacity:1,transform:'translate3d(0,0,0) scaleY(1)'},
+          {opacity:0,transform:'translate3d(0,-2px,0) scaleY(.98)'}
+        ],{duration:95,easing:'ease-in'});
+        panel._mediaTransition=transition;
+        transition.onfinish=()=>{
+          if(panel._mediaTransition===transition){panel.hidden=true;panel._mediaTransition=null;}
+        };
+      }
+    }
+    function toggleMediaOptions(button){
+      const row=button.closest('.media-actions');const control=button.closest('.media-control');
+      if(!row||!control)return;
+      const type=control.dataset.mediaType;const panel=row.querySelector(`.media-panel[data-panel="${type}"]`);
+      if(!panel)return;
+      // Use the selection state so rapid taps can reverse an in-flight animation.
+      const opening=!control.classList.contains('expanded');
+      row.querySelectorAll('.media-panel').forEach(p=>{
+        // Close other menus immediately when switching type to avoid overlapping panels.
+        if(p!==panel)setMediaPanelVisibility(p,false,false);
+      });
+      row.querySelectorAll('.media-control').forEach(c=>{c.classList.remove('expanded');c.querySelector('.media-expand')?.setAttribute('aria-expanded','false');});
+      setMediaPanelVisibility(panel,opening,true);
+      if(opening){control.classList.add('expanded');button.setAttribute('aria-expanded','true');}
+    }
+    function openRadioForGame(game,index){
+      const station=radioOptionsForGame(game)[index];if(!station)return;
+      // Radio is additive: do not modify the production openProvider() / WKWebView launch policy.
+      window.location.href=station.url;
+    }
+    function renderGameCard(game){
+      const providerKeys = getEnabledProviderKeysForGame(game);
+      const providerKey = getPreferredProviderForGame(providerKeys) || providerFromNetwork(game.network);
+      const provider = PROVIDER_LINKS[providerKey] || PROVIDER_LINKS.nflplus;
+      const isLive = isLiveGame(game);
+      const isFinal = isFinalGame(game);
+      const result = getGameResult(game);
+      const providerIcons = isFinal ? "" : renderProviderIcons(providerKeys, providerKey, game);
+      const fantasyBlock = renderFantasyBlock(game);
+      const liveClass = isLive ? " live-game" : "";
+      const favoriteClass = isFavoriteGame(game) ? " favorite-game" : "";
+      const winnerSideClass = isFinal && result.away === "winner" ? " away-winner" : (isFinal && result.home === "winner" ? " home-winner" : "");
+      const statusClass = isLive ? "live" : (isFinal ? "final" : "scheduled");
+      const isResultsFinal = isFinal && sortMode === "final";
+      const isOvertimeFinal = isResultsFinal && (Number(game.period) > 4 || /\b(?:OT|overtime)\b/i.test(String(game.statusDetail || "")));
+      const localBadge = isResultsFinal ? "" : renderConfirmedLocalBadge(game);
+      const followed=isGameFollowed(game.id);
+      const matchup=`${game.awayTeam} at ${game.homeTeam}`;
+      const followButton=(!isLive&&!isFinal&&nativeFollowHandler())
+        ? `<button type="button" class="follow-icon-button${followed?" following":""}" data-follow-game-id="${escapeHtml(String(game.id))}" data-matchup="${escapeHtml(matchup)}" aria-label="${followed?"Following":"Follow"} ${escapeHtml(matchup)}" aria-pressed="${followed}" title="${followed?"Unfollow game":"Follow game"}" onclick='toggleFollowGame(event, ${JSON.stringify(String(game.id)).replace(/'/g,"&#39;")})'>${bellIcon(followed)}</button>`
+        : "";
+      const statusBadge=isResultsFinal
+        ? (isOvertimeFinal ? `<span class="badge final" aria-label="Final after overtime">OT</span>` : "")
+        : ((isLive||isFinal) ? `<span class="badge ${statusClass}" data-game-field="status">${displayStatus(game.status)}</span>` : "");
+      // A completed Results card does not need a blank header above the score.
+      const showCardHeader=!isResultsFinal || Boolean(localBadge || statusBadge);
+      const actionRow = isFinal ? "" : renderMediaActions(game,providerKeys,providerKey);
+      return `
+        <article class="game-card${isResultsFinal ? " results-final-card" : ""}${liveClass}${favoriteClass}${winnerSideClass}" data-game-id="${escapeHtml(String(game.id))}" aria-label="${escapeHtml(isResultsFinal ? `Final: ${game.awayTeam} ${game.awayScore ?? ""}, ${game.homeTeam} ${game.homeScore ?? ""}${isOvertimeFinal ? ", overtime" : ""}` : matchup)}">
+          ${showCardHeader ? `<div class="game-top">
+            <div class="time">${isResultsFinal ? "" : `${followButton}<span>${formatKickoff(game)}</span>`}</div>
+            <div class="game-clock-top" data-game-field="clock">${isLive ? getClockLine(game) : ""}</div>
+            <div class="badges">${localBadge}${statusBadge}</div>
+          </div>` : ""}
+          <div class="teams-row">
+
+            ${renderTeam(
+                game.awayAbbr,
+                game.awayTeam,
+                game.awayLogo,
+                "away",
+                game.awayRecord,
+                game.possessionAbbr === game.awayAbbr,
+                result.away
+            )}
+            <div class="center-score">
+                <span class="team-score ${result.away}" data-score-side="away">
+                    ${game.awayScore ?? ""}
+                </span>
+
+                <span class="vs">@</span>
+
+                <span class="team-score ${result.home}" data-score-side="home">
+                    ${game.homeScore ?? ""}
+                </span>
+            </div>
+          ${renderTeam(
+              game.homeAbbr,
+              game.homeTeam,
+              game.homeLogo,
+              "home",
+              game.homeRecord,
+              game.possessionAbbr === game.homeAbbr,
+              result.home
+          )}
+          </div>
+          ${actionRow}
+          ${fantasyBlock}
+        </article>`;
+    }
+
+    function visibleGameSignature(){
+      return getDisplayGames().map(game=>String(game.id)).join("|");
+    }
+
+    function findVisibleGameCard(gameId){
+      const id=String(gameId);
+      return Array.from(scheduleEl.querySelectorAll(".game-card[data-game-id]"))
+        .find(card=>card.dataset.gameId===id) || null;
+    }
+
+    function createGameCardElement(game){
+      const template=document.createElement("template");
+      template.innerHTML=renderGameCard(game).trim();
+      return template.content.firstElementChild;
+    }
+
+    function syncPossessionIndicator(card,side,hasPossession){
+      const row=card.querySelector(`[data-team-side="${side}"]`);
+      if(!row)return;
+      let indicator=row.querySelector(".possession");
+      if(hasPossession && !indicator){
+        indicator=document.createElement("span");
+        indicator.className="possession";
+        indicator.title="Possession";
+        indicator.textContent="🏈";
+        row.appendChild(indicator);
+      }else if(!hasPossession && indicator){
+        indicator.remove();
+      }
+    }
+
+    // Score data is applied immediately. The visual feedback waits until the
+    // WKWebView has appeared and the changed game card is actually visible.
+    // This avoids spending the pulse behind the native launch screen.
+    const SCORE_PULSE_STARTUP_GRACE_MS = 1450;
+    const SCORE_PULSE_MIN_DELAY_MS = 360;
+    const SCORE_PULSE_MAX_AGE_MS = 10000;
+    const scorePulseReadyAt = performance.now() + SCORE_PULSE_STARTUP_GRACE_MS;
+    const pendingScorePulses = new Map();
+    let scorePulseVisibilityObserver = null;
+    let scorePulseTimer = null;
+
+    function scoreCardIsVisible(card){
+      if(!card || !card.isConnected || document.visibilityState === "hidden")return false;
+      const rect=card.getBoundingClientRect();
+      const header=document.querySelector(".app-header");
+      const visibleTop=Math.max(0,header?.getBoundingClientRect().bottom||0);
+      const visibleBottom=window.innerHeight;
+      const visibleHeight=Math.min(rect.bottom,visibleBottom)-Math.max(rect.top,visibleTop);
+      return visibleHeight>0 && visibleHeight>=Math.min(rect.height*.35,110);
+    }
+
+    function playScorePulse(card,change){
+      if(!card || !change.scoreChanged)return;
+      const changedScores=[];
+      if(change.awayScored)changedScores.push(card.querySelector('[data-score-side="away"]'));
+      if(change.homeScored)changedScores.push(card.querySelector('[data-score-side="home"]'));
+      card.classList.remove("score-change");
+      changedScores.forEach(score=>score?.classList.remove("score-changed"));
+      // This style read happens only when the card is visible, not during startup.
+      void card.offsetWidth;
+      card.classList.add("score-change");
+      changedScores.forEach(score=>score?.classList.add("score-changed"));
+      window.setTimeout(()=>{
+        card.classList.remove("score-change");
+        changedScores.forEach(score=>score?.classList.remove("score-changed"));
+      },1400);
+    }
+
+    function flushPendingScorePulses(){
+      scorePulseTimer=null;
+      const now=performance.now();
+      for(const [id,pulse] of pendingScorePulses){
+        const card=findVisibleGameCard(id);
+        if(now>pulse.expiresAt){
+          pendingScorePulses.delete(id);
+          continue;
+        }
+        if(now<pulse.earliestAt || !scoreCardIsVisible(card))continue;
+        pendingScorePulses.delete(id);
+        playScorePulse(card,pulse.change);
+      }
+      if(!pendingScorePulses.size){
+        scorePulseVisibilityObserver?.disconnect();
+        scorePulseVisibilityObserver=null;
+      }
+    }
+
+    function scheduleScorePulseCheck(delay=0){
+      if(scorePulseTimer!==null)clearTimeout(scorePulseTimer);
+      scorePulseTimer=window.setTimeout(flushPendingScorePulses,delay);
+    }
+
+    function queueScorePulse(card,change){
+      if(!card || !change.scoreChanged)return;
+      const now=performance.now();
+      const id=String(change.id);
+      // Coalesce repeated changes to the same game during startup.
+      const earlier=pendingScorePulses.get(id);
+      pendingScorePulses.set(id,{
+        change:{...change,awayScored:change.awayScored||!!earlier?.change.awayScored,
+          homeScored:change.homeScored||!!earlier?.change.homeScored},
+        earliestAt:Math.max(scorePulseReadyAt,now+SCORE_PULSE_MIN_DELAY_MS),
+        expiresAt:now+SCORE_PULSE_MAX_AGE_MS
+      });
+      if(!scorePulseVisibilityObserver && "IntersectionObserver" in window){
+        scorePulseVisibilityObserver=new IntersectionObserver(()=>scheduleScorePulseCheck(0),{threshold:[0,.35]});
+      }
+      if(scorePulseVisibilityObserver)scorePulseVisibilityObserver.observe(card);
+      scheduleScorePulseCheck(Math.max(0,Math.max(scorePulseReadyAt,now+SCORE_PULSE_MIN_DELAY_MS)-now));
+      // Offscreen entries expire rather than animating old scores minutes later.
+      window.setTimeout(()=>{if(pendingScorePulses.has(id))flushPendingScorePulses();},SCORE_PULSE_MAX_AGE_MS+30);
+    }
+
+    function triggerScoreChangeAnimation(card,change){
+      queueScorePulse(card,change);
+    }
+
+    function animateRenderedScoreChanges(changes){
+      requestAnimationFrame(()=>{
+        changes.forEach(change=>triggerScoreChangeAnimation(findVisibleGameCard(change.id),change));
+      });
+    }
+
+    document.addEventListener("visibilitychange",()=>{
+      if(document.visibilityState==="visible" && pendingScorePulses.size)scheduleScorePulseCheck(450);
+    });
+    window.addEventListener("scroll",()=>{
+      if(pendingScorePulses.size)scheduleScorePulseCheck(75);
+    },{passive:true});
+
+    function updateVisibleGameCards(changes){
+      const fantasyRefresh=new Map();
+      const forcedFantasyRefresh=new Map();
+      changes.forEach(change=>{
+        const card=findVisibleGameCard(change.id);
+        if(!card)return;
+
+        const recordsChanged=String(change.before.homeRecord||"")!==String(change.after.homeRecord||"") ||
+          String(change.before.awayRecord||"")!==String(change.after.awayRecord||"");
+        if(change.statusChanged || change.providerChanged || recordsChanged){
+          const replacement=createGameCardElement(change.after);
+          if(!replacement)return;
+          card.replaceWith(replacement);
+          if(isLiveGame(change.after)||isFinalGame(change.after)){
+            const needsFinalRefresh=change.statusChanged&&isFinalGame(change.after);
+            const target=(change.scoreChanged||needsFinalRefresh)?forcedFantasyRefresh:fantasyRefresh;
+            target.set(String(change.after.id),change.after);
+          }
+          triggerScoreChangeAnimation(replacement,change);
+          return;
+        }
+
+        const clock=card.querySelector('[data-game-field="clock"]');
+        if(clock)clock.innerHTML=isLiveGame(change.after)?getClockLine(change.after):"";
+
+        const awayScore=card.querySelector('[data-score-side="away"]');
+        const homeScore=card.querySelector('[data-score-side="home"]');
+        if(awayScore)awayScore.textContent=change.after.awayScore ?? "";
+        if(homeScore)homeScore.textContent=change.after.homeScore ?? "";
+
+        syncPossessionIndicator(card,"away",change.after.possessionAbbr===change.after.awayAbbr);
+        syncPossessionIndicator(card,"home",change.after.possessionAbbr===change.after.homeAbbr);
+        triggerScoreChangeAnimation(card,change);
+        if(change.scoreChanged && (isLiveGame(change.after)||isFinalGame(change.after))){
+          forcedFantasyRefresh.set(String(change.after.id),change.after);
+        }else if(isLiveGame(change.after) && !isFantasyCacheFresh(change.after)){
+          fantasyRefresh.set(String(change.after.id),change.after);
+        }
+      });
+
+      updateFilterCounts();
+      lastNativeWidgetSyncFingerprint="";
+      syncWidgetDataWithNative();
+      if(fantasyRefresh.size)hydrateFantasyBlocks([...fantasyRefresh.values()]);
+      if(forcedFantasyRefresh.size)hydrateFantasyBlocks([...forcedFantasyRefresh.values()],{force:true});
+    }
+
+    function migrateAppData(){
+      const previous=Number(localStorage.getItem(APP_DATA_VERSION_KEY)||0);
+      if(previous===APP_DATA_VERSION)return;
+      localStorage.setItem(APP_DATA_VERSION_KEY,String(APP_DATA_VERSION));
+    }
+
+    function readEnabledProviders(){
+      try{
+        const saved=JSON.parse(localStorage.getItem(PROVIDER_PREF_KEY)||"null");
+        if(Array.isArray(saved)){
+          const valid=saved.filter(key=>DEFAULT_ENABLED_PROVIDERS.includes(key));
+          return valid.length?valid:[...DEFAULT_ENABLED_PROVIDERS];
+        }
+      }catch(_){}
+      const fresh=[...DEFAULT_ENABLED_PROVIDERS];
+      localStorage.setItem(PROVIDER_PREF_KEY,JSON.stringify(fresh));
+      return fresh;
+    }
+
+    function saveEnabledProviders(){
+      try{ localStorage.setItem(PROVIDER_PREF_KEY, JSON.stringify(enabledProviders)); }catch(err){}
+    }
+
+
+    // v1.0.5: the native wrapper owns a single weekly repeating reminder.
+    // Never claim this is scheduled until the native bridge confirms it.
+    const WAIVER_REMINDER_PREFERENCE_KEY="gridironGuide.waiverReminder.v1";
+    function nativeWaiverReminderHandler(){
+      return window.webkit?.messageHandlers?.waiverReminder||null;
+    }
+    function waiverReminderElements(){
+      return {toggle:document.getElementById("weeklyWaiverAlerts"),status:document.getElementById("waiverAlertStatus")};
+    }
+    function setWaiverReminderStatus(message,state=""){
+      const {status}=waiverReminderElements();
+      if(!status)return;
+      status.textContent=message;
+      status.classList.toggle("is-active",state==="active");
+      status.classList.toggle("is-error",state==="error");
+    }
+    function syncWaiverReminderStatus(){
+      const handler=nativeWaiverReminderHandler();
+      if(handler){handler.postMessage({action:"status"});}
+    }
+    function syncWaiverReminderQuickControl(enabled){
+      const quick=document.querySelector("[data-waiver-reminder-quick]");
+      if(!quick)return;
+      const active=typeof enabled==="boolean"
+        ?enabled:(localStorage.getItem(WAIVER_REMINDER_PREFERENCE_KEY)==="true");
+      quick.disabled=false;
+      quick.removeAttribute("aria-busy");
+      quick.classList.toggle("is-on",active);
+      quick.setAttribute("aria-pressed",String(active));
+      quick.setAttribute("aria-label",active?"Disable weekly waiver reminders":"Enable weekly waiver reminders");
+      quick.title=active?"Weekly waiver reminders on · Tuesdays at 6 PM Pacific":"Enable weekly waiver reminders · Tuesdays at 6 PM Pacific";
+    }
+    function requestWaiverReminder(enabled){
+      const handler=nativeWaiverReminderHandler();
+      if(!handler)return;
+      const {toggle}=waiverReminderElements();
+      if(toggle)toggle.disabled=true;
+      const quick=document.querySelector("[data-waiver-reminder-quick]");
+      if(quick){quick.disabled=true;quick.setAttribute("aria-busy","true");}
+      setWaiverReminderStatus(enabled?"Enabling weekly alerts…":"Disabling weekly alerts…");
+      handler.postMessage({action:enabled?"enable":"disable"});
+    }
+    // Called by the Xcode wrapper after checking UNUserNotificationCenter.
+    window.gridironGuideWaiverReminderResult=function(result){
+      const {toggle}=waiverReminderElements();
+      if(!toggle||!result)return;
+      const enabled=result.enabled===true;
+      toggle.disabled=!nativeWaiverReminderHandler();
+      toggle.checked=enabled;
+      syncWaiverReminderQuickControl(enabled);
+      try{localStorage.setItem(WAIVER_REMINDER_PREFERENCE_KEY,String(enabled));}catch(_err){}
+      if(result.reason==="permissionDenied"){
+        setWaiverReminderStatus("Notifications are blocked in iOS Settings. Enable alerts there and try again.","error");
+      }else if(result.reason==="schedulingFailed"){
+        setWaiverReminderStatus("Could not schedule the reminder. Try again.","error");
+      }else if(enabled){
+        setWaiverReminderStatus("On · Repeats Tuesdays at 6:00 PM Pacific until switched off.","active");
+      }else{
+        setWaiverReminderStatus("Off · No weekly waiver reminder is scheduled.");
+      }
+    };
+    function initWaiverReminderSettings(){
+      const {toggle}=waiverReminderElements();
+      if(!toggle)return;
+      const handler=nativeWaiverReminderHandler();
+      if(!handler){
+        toggle.checked=false;
+        toggle.disabled=true;
+        setWaiverReminderStatus("Available in the iOS app after native notification support is installed.");
+        return;
+      }
+      toggle.disabled=true;
+      setWaiverReminderStatus("Checking iOS notification settings…");
+      handler.postMessage({action:"status"});
+      toggle.addEventListener("change",()=>{
+        if(!nativeWaiverReminderHandler()){toggle.checked=false;toggle.disabled=true;return;}
+        requestWaiverReminder(toggle.checked);
+      });
+      window.addEventListener("gridironGuideNativeResume",syncWaiverReminderStatus);
+    }
+    // The native notification tap handler calls this after WKWebView has loaded.
+    // Uses existing Fantasy navigation; no game-card or provider routing changes.
+    window.gridironGuideOpenWaiversFromNotification=function(){
+      if(typeof closeSettings==="function")closeSettings();
+      if(typeof restoreCurrentWeekSelection==="function")restoreCurrentWeekSelection();
+      weeklyFantasyMode="waivers";
+      weeklyFantasyPosition="ALL";
+      navigateDashboard("fantasy");
+      loadWaivers({force:true});
+    };
+
+    function initSettingsControls(){
+      renderFavoriteTeamSettings();
+      const widgetHelpHandler=window.webkit?.messageHandlers?.widgetHelp;
+      const nativeWidgetSettings=document.querySelector("#nativeWidgetSettings");
+      if(widgetHelpHandler&&nativeWidgetSettings){
+        nativeWidgetSettings.hidden=false;
+        document.querySelector("#widgetHelpButton")?.addEventListener("click",()=>widgetHelpHandler.postMessage({}));
+      }
+      document.querySelector("#favoriteTeamAdd")?.addEventListener("click",()=>{
+        const select=document.querySelector("#favoriteTeamSelect");
+        const id=String(select?.value||"");
+        if(id)addFavoriteTeam("NFL",id);
+      });
+      document.querySelector("#favoriteTeamSelect")?.addEventListener("keydown",event=>{
+        if(event.key==="Enter"){
+          const id=String(event.currentTarget.value||"");
+          if(id)addFavoriteTeam("NFL",id);
+        }
+      });
+      document.querySelector("#favoriteTeamList")?.addEventListener("click",event=>{
+        const chip=event.target.closest?.("[data-favorite-team]");
+        if(chip)removeFavoriteTeam(String(chip.dataset.favoriteLeague||"NFL"),String(chip.dataset.favoriteTeam||""));
+      });
+      const syncButtons = () => {
+        document.querySelectorAll(".settings-provider[data-provider]").forEach(btn => {
+          btn.classList.toggle("active", enabledProviders.includes(btn.dataset.provider));
+        });
+      };
+      syncButtons();
+      const radioToggle=document.querySelector("#showRadioBroadcasts");
+      if(radioToggle){radioToggle.checked=showRadioBroadcasts;radioToggle.addEventListener("change",()=>{showRadioBroadcasts=radioToggle.checked;localStorage.setItem("gridironGuide.showRadioBroadcasts.v1",String(showRadioBroadcasts));renderSchedule();});}
+      const sundayTicketToggle=document.querySelector("#sundayTicketEnabled");
+      if(sundayTicketToggle){sundayTicketToggle.checked=sundayTicketEnabled;sundayTicketToggle.addEventListener("change",()=>{sundayTicketEnabled=sundayTicketToggle.checked;localStorage.setItem(SUNDAY_TICKET_KEY,String(sundayTicketEnabled));renderSchedule();});}
+      const dtvPkg=document.querySelector("#directvNflPackage");
+      if(dtvPkg){dtvPkg.checked=directvNflPackageEnabled;dtvPkg.addEventListener("change",()=>{directvNflPackageEnabled=dtvPkg.checked;localStorage.setItem(DIRECTV_NFL_PACKAGE_KEY,String(directvNflPackageEnabled));renderSchedule();});}
+      const versionLabel=document.querySelector("#appVersionLabel");
+      if(versionLabel){
+        versionLabel.textContent=`Gridiron Guide · Version ${APP_VERSION}`;
+        versionLabel.setAttribute("aria-label",`Gridiron Guide version ${APP_VERSION}`);
+      }
+      const preferredProviderEl=document.querySelector("#preferredProvider");
+      if(preferredProviderEl){
+        preferredProviderEl.value=preferredProvider;
+        preferredProviderEl.addEventListener("change",()=>{
+          preferredProvider=preferredProviderEl.value||"auto";
+          localStorage.setItem(PREFERRED_PROVIDER_KEY,preferredProvider);
+          renderSchedule();
+        });
+      }
+      const dz=document.querySelector("#directvZip"),ds=document.querySelector("#directvZipSave"),dh=document.querySelector("#directvZipHint"),dl=document.querySelector("#directvLocate"),dm=document.querySelector("#directvMarketStatus"); if(dz)dz.value=directvZip;
+      const syncDtvMarket=()=>{if(dm)dm.textContent=`Market: ${directvMarket||"not detected"}${directvMarketSource?` (${directvMarketSource})`:""}`;};
+      syncDtvMarket();
+      if(directvZip&&!directvMarket){
+        resolveMarketFromZip(directvZip).then(hit=>{
+          if(!hit)return;
+          directvMarket=hit.market;directvMarketSource=`ZIP ${directvZip}${hit.city?` • ${hit.city}, ${hit.state}`:""}`;
+          localStorage.setItem(DIRECTV_MARKET_KEY,directvMarket);localStorage.setItem(DIRECTV_MARKET_SOURCE_KEY,directvMarketSource);
+          syncDtvMarket();renderSchedule();
+        }).catch(()=>{});
+      }
+      const saveDz=async()=>{
+        const v=String(dz?.value||"").trim();
+        if(!/^\d{5}$/.test(v)){if(dh)dh.textContent="Enter a valid 5-digit ZIP.";return;}
+        directvZip=v;localStorage.setItem(DIRECTV_ZIP_KEY,v);
+        directvMarket="";directvMarketSource="";localStorage.removeItem(DIRECTV_MARKET_KEY);localStorage.removeItem(DIRECTV_MARKET_SOURCE_KEY);
+        if(dm)dm.textContent=`Market: resolving ZIP ${v}…`;
+        try{
+          const hit=await resolveMarketFromZip(v);
+          if(!hit)throw new Error("ZIP not found");
+          directvMarket=hit.market;directvMarketSource=`ZIP ${v}${hit.city?` • ${hit.city}, ${hit.state}`:""}`;
+          localStorage.setItem(DIRECTV_MARKET_KEY,directvMarket);localStorage.setItem(DIRECTV_MARKET_SOURCE_KEY,directvMarketSource);
+          syncDtvMarket();showToast(`TV market: ${directvMarket}`);
+          if(dh)dh.textContent=`Saved: ${directvMarket}${hit.city?` · ${hit.city}, ${hit.state}`:""}.`;
+        }catch(err){
+          syncDtvMarket();showToast("Could not resolve ZIP market; location remains available");
+          if(dh)dh.textContent="ZIP saved, but market lookup is unavailable. Try Use location.";
+        }
+        renderSchedule();
+      };
+      ds?.addEventListener("click",saveDz);dz?.addEventListener("keydown",e=>{if(e.key==="Enter")saveDz();});
+      const applyLocationCoordinates=async(latitude,longitude)=>{
+        try{
+          const hit=await estimateUsTvMarket(Number(latitude),Number(longitude));
+          if(!hit)throw new Error("No market result");
+          directvMarket=hit.market;directvMarketSource=`location estimate${hit.confidence?`/${hit.confidence}`:""}`;
+          localStorage.setItem(DIRECTV_MARKET_KEY,directvMarket);
+          localStorage.setItem(DIRECTV_MARKET_SOURCE_KEY,directvMarketSource);
+          syncDtvMarket();
+          showToast(`TV market estimated: ${directvMarket}`);
+          renderSchedule();
+        }catch(err){
+          directvMarket="";directvMarketSource="";
+          localStorage.removeItem(DIRECTV_MARKET_KEY);
+          localStorage.removeItem(DIRECTV_MARKET_SOURCE_KEY);
+          syncDtvMarket();
+          showToast("TV market data unavailable; ZIP entry still works");
+          renderSchedule();
+        }
+      };
+
+      // Native iOS wrapper callback targets. Core Location owns the permission flow,
+      // so WKWebView never presents a second file:// website location prompt.
+      window.gridironGuideNativeLocation=(latitude,longitude)=>{
+        applyLocationCoordinates(latitude,longitude);
+      };
+      window.gridironGuideNativeLocationError=()=>{
+        syncDtvMarket();
+        showToast("Location permission unavailable; ZIP entry still works");
+      };
+
+      dl?.addEventListener("click",()=>{
+        if(dm)dm.textContent="Market: detecting…";
+        const nativeLocation=window.webkit?.messageHandlers?.requestLocation;
+        if(nativeLocation){
+          nativeLocation.postMessage({});
+          return;
+        }
+
+        // Browser-only fallback for the standalone web build. The App Store WKWebView
+        // always uses the native bridge above.
+        if(!navigator.geolocation){
+          syncDtvMarket();
+          showToast("Location is not supported by this browser");
+          return;
+        }
+        navigator.geolocation.getCurrentPosition(
+          pos=>applyLocationCoordinates(pos.coords.latitude,pos.coords.longitude),
+          ()=>window.gridironGuideNativeLocationError(),
+          {enableHighAccuracy:false,timeout:8000,maximumAge:86400000}
+        );
+      });
+      document.querySelectorAll(".settings-provider[data-provider]").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const key = btn.dataset.provider;
+          if(enabledProviders.includes(key)) enabledProviders = enabledProviders.filter(item => item !== key);
+          else enabledProviders = Array.from(new Set([...enabledProviders, key]));
+          saveEnabledProviders();
+          syncButtons();
+          renderSchedule();
+        });
+      });
+      settingsBtnEl?.addEventListener("click", openSettings);
+      settingsCloseBtnEl?.addEventListener("click", closeSettings);
+      settingsOverlayEl?.addEventListener("click", event => {
+        if(event.target === settingsOverlayEl) closeSettings();
+      });
+      document.addEventListener("keydown", event => {
+        if(event.key === "Escape") closeSettings();
+      });
+    }
+
+    function openSettings(){
+      settingsOverlayEl?.classList.add("open");
+      settingsOverlayEl?.setAttribute("aria-hidden", "false");
+    }
+
+    function closeSettings(){
+      settingsOverlayEl?.classList.remove("open");
+      settingsOverlayEl?.setAttribute("aria-hidden", "true");
+    }
+    function getDirectvEligibility(game){
+      const zip=String(directvZip||"").trim();
+      const market=String(directvMarket||"").trim();
+      const hasLocation=/^\d{5}$/.test(zip)||!!market;
+      const networkClass=typeof classifyBroadcastNetwork==="function"?classifyBroadcastNetwork(game):"";
+
+      if(["PRIME","NETFLIX","PEACOCK_EXCLUSIVE"].includes(networkClass)){
+        return {eligible:false,type:"THIRD_PARTY",reason:`${networkClass} requires a separate streaming subscription and does not qualify as a DIRECTV channel.`,zip,market,networkClass};
+      }
+      if(networkClass==="NFL_NETWORK"){
+        return directvNflPackageEnabled
+          ? {eligible:true,type:"NFL_PACKAGE",reason:"NFL Network detected and DIRECTV NFL/Sports Package setting is ON.",zip,market,networkClass}
+          : {eligible:false,type:"NFL_PACKAGE_LOCKED",reason:"NFL Network detected; enable DIRECTV NFL/Sports Package if your plan includes NFL Network.",zip,market,networkClass};
+      }
+      if(["NBC","ABC","ESPN"].includes(networkClass)){
+        if(!hasLocation)return {eligible:false,type:"NO_LOCATION",reason:"Save a ZIP or use location before DIRECTV availability is shown.",zip,market,networkClass};
+        return {eligible:true,type:"NETWORK_INCLUDED",reason:`${networkClass} is a standard DIRECTV NFL network; channel availability still depends on package/location.`,zip,market,networkClass};
+      }
+      if(["CBS","FOX_LOCAL","FOX_REGIONAL","FOX_NATIONAL"].includes(networkClass)){
+        if(!hasLocation)return {eligible:false,type:"NO_LOCATION",reason:"Sunday CBS/FOX availability needs ZIP or market context.",zip,market,networkClass};
+        const weekly=getWeeklyCoverageAssignment(game);
+        if(weekly?.match)return {eligible:true,type:"LOCAL_INCLUDED",reason:`Weekly local coverage data assigns ${weekly.assignedGame} to ${weekly.station||market} for this ${weekly.slot||networkClass} window.`,zip,market,networkClass};
+        if(weekly?.conflict)return {eligible:false,type:"OUT_OF_MARKET",reason:`Weekly local coverage data assigns ${weekly.assignedGame} to ${weekly.station||market} in this broadcast window, so this game is out of market.`,zip,market,networkClass};
+        const affiliateMarket=getLocalAffiliateMarket(getBroadcastNames(game));
+        if(market&&affiliateMarket){
+          if(affiliateCityMatchesMarket(affiliateMarket,market))return {eligible:true,type:"LOCAL_INCLUDED",reason:`ESPN identifies a ${networkClass.startsWith("FOX")?"FOX":"CBS"} affiliate in the detected ${market} market.`,zip,market,networkClass};
+          return {eligible:false,type:"OUT_OF_MARKET",reason:`The identified affiliate is ${affiliateMarket}, not ${market}. Out-of-market Sunday afternoon games require a separate YouTube/NFL Sunday Ticket subscription.`,zip,market,networkClass};
+        }
+        if(market&&gameMatchesMarketTeam(game,market)){
+          return {eligible:true,type:"LOCAL_EXPECTED",reason:`This game includes the ${market} home-market team, so local CBS/FOX carriage is expected. Weekly affiliate selection can still vary.`,zip,market,networkClass};
+        }
+        return {eligible:false,type:"LOCAL_UNVERIFIED",reason:"CBS/FOX Sunday game detected, but this standalone app cannot verify the weekly local affiliate selection. If it is not on your local CBS/FOX station, it requires YouTube/NFL Sunday Ticket rather than DIRECTV.",zip,market,networkClass};
+      }
+      return {eligible:false,type:"UNVERIFIED",reason:"No reusable DIRECTV network/package rule qualifies this game.",zip,market,networkClass};
+    }
+
+    function localGameDate(g){const d=new Date(g.dateTime);return Number.isNaN(d.getTime())?"":`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;}
+    function matchup(g,a,h){return String(g.awayAbbr||"").toUpperCase()===a&&String(g.homeAbbr||"").toUpperCase()===h;}
+    function isNetflixGame(g){
+      const d=localGameDate(g), fixed=[["2026-09-10","SF","LAR"],["2026-11-25","GB","LAR"],["2026-12-25","GB","CHI"],["2026-12-25","BUF","DEN"]];
+      return fixed.some(x=>d===x[0]&&matchup(g,x[1],x[2]))||String(g.network||"").toLowerCase().includes("netflix");
+      // Fifth Netflix game is Week 18, Jan 9 2027; ESPN network metadata will identify it once flexed.
+    }
+    function isPeacockGame(g){
+      const n=String(g.network||"").toLowerCase();
+      return n.includes("peacock")||n.includes("nbc")||(localGameDate(g)==="2026-12-27"&&matchup(g,"BAL","GB"));
+    }
+    function getEnabledProviderKeysForGame(game){
+      const detected=getProviderKeysForGame(game);
+      return detected.filter(key=>key==="sundayticket"?sundayTicketEnabled:enabledProviders.includes(key));
+    }
+
+    function weeklyFantasyGames(){
+      return allGames.filter(game=>(!selectedScheduleWeek||scheduleWeekKey(game)===selectedScheduleWeek)&&(isFinalGame(game)||isLiveGame(game)));
+    }
+    // The box score groups receivers by statistic, not by roster position.
+    // Fetch the two team rosters once per session to distinguish TEs from WRs.
+    const fantasyTeamRosterRequests = new Map();
+    function fantasyRosterEntries(payload){
+      const result=[];
+      const visit=(node,depth=0)=>{
+        if(!node||depth>7)return;
+        if(Array.isArray(node)){node.forEach(item=>visit(item,depth+1));return;}
+        if(typeof node!=="object")return;
+        const athlete=node.athlete || (node.id && (node.displayName||node.fullName) ? node : null);
+        if(athlete){
+          const pos=normalizeFantasyPosition(athlete.position || node.position);
+          if(pos)result.push({id:String(athlete.id||""),name:String(athlete.displayName||athlete.fullName||athlete.name||"").trim().toLowerCase(),position:pos});
+        }
+        for(const key of ["athletes","roster","items","groups","entries"]){if(node[key])visit(node[key],depth+1);}
+      };
+      visit(payload);
+      return result;
+    }
+    async function fantasyTeamRoster(teamId){
+      if(!teamId)return [];
+      const key=String(teamId);
+      if(!fantasyTeamRosterRequests.has(key)){
+        const request=fetchJson(`https://site.api.espn.com/apis/site/v2/sports/football/nfl/teams/${encodeURIComponent(key)}/roster`)
+          .then(fantasyRosterEntries).catch(()=>[]);
+        fantasyTeamRosterRequests.set(key,request);
+      }
+      return fantasyTeamRosterRequests.get(key);
+    }
+    async function resolveFantasyRosterPositions(summary,players){
+      const competitors=summary?.header?.competitions?.[0]?.competitors || [];
+      const teamIds=[...new Set(competitors.map(c=>c?.team?.id).filter(Boolean))];
+      if(!teamIds.length)return players;
+      const rosters=(await Promise.all(teamIds.map(fantasyTeamRoster))).flat();
+      const byId=new Map(rosters.filter(r=>r.id).map(r=>[r.id,r.position]));
+      const byName=new Map(rosters.filter(r=>r.name).map(r=>[r.name,r.position]));
+      return players.map(p=>({...p,position:byId.get(String(p.id))||byName.get(String(p.name).trim().toLowerCase())||p.position}));
+    }
+    async function getAllFantasyPlayers(game,{force=false}={}){
+      const key=WEEKLY_FANTASY_CACHE_PREFIX+game.id;
+      const cached=readFantasyCacheRecord(key);
+      if(!force && isGameFantasyCacheFresh(game,cached))return cached.leaders;
+      if(weeklyFantasyRequests.has(key))return weeklyFantasyRequests.get(key);
+      const request=(async()=>{
+        try{
+          const summary=await fetchJson(`${ESPN_SUMMARY_BASE}?event=${encodeURIComponent(game.id)}`);
+          const players=await resolveFantasyRosterPositions(summary,extractFantasyLeadersFromEspnSummary(summary));
+          if(players.length)cacheFantasy(key,players);
+          return players;
+        }catch(err){return cached.leaders;}
+      })().finally(()=>weeklyFantasyRequests.delete(key));
+      weeklyFantasyRequests.set(key,request);
+      return request;
+    }
+    function weeklyFantasyScore(player){
+      const scoring=WEEKLY_SCORING_MODES.find(m=>m.key===weeklyScoringMode)||WEEKLY_SCORING_MODES[0];
+      return Number(player.points||0)-Number(player.receptions||0)*(1-scoring.bonus);
+    }
+    function renderWeeklyFantasyPlayers(){
+      const el=document.querySelector("#weeklyFantasyContent");
+      if(!el||sortMode!=="final"||resultsSubview!=="fantasy")return;
+      if(weeklyFantasyMode==="waivers"){renderWaivers();return;}
+      const weekGames=allGames.filter(game=>!selectedScheduleWeek||scheduleWeekKey(game)===selectedScheduleWeek);
+      const finished=weekGames.filter(isFinalGame).length;
+      const remaining=weekGames.length-finished;
+      const progress=weekGames.length?(remaining?`${finished} completed · ${remaining} remaining`:`${finished} games completed · Final results`):"No games scheduled";
+      const pending=weeklyFantasyLoaded<weeklyFantasyExpected;
+      const notice=pending?`<span class="weekly-stats-pending"> · Updating player stats…</span>`:"";
+      const filtered=weeklyFantasyPlayers.filter(p=>weeklyFantasyPosition==="ALL"||p.position===weeklyFantasyPosition).sort((a,b)=>weeklyFantasyScore(b)-weeklyFantasyScore(a)).slice(0,10);
+      const progressEl=document.getElementById("weeklyProgress");
+      if(progressEl)progressEl.innerHTML=`${escapeHtml(progress)}${notice}`;
+      el.innerHTML=(filtered.length?filtered.map((p,i)=>`<div class="weekly-player"><span class="weekly-rank">${i+1}</span><div class="weekly-player-info"><div class="weekly-player-name">${escapeHtml(p.name)}</div>${renderFantasyPlayerMeta(p)}</div><div class="weekly-player-points">${weeklyFantasyScore(p).toFixed(1)} PTS</div></div>`).join(""):`<p class="weekly-progress">${pending?"Loading player performances…":`No ${weeklyFantasyPosition==="ALL"?"player":"position"} stats available for this week yet.`}</p>`);
+    }
+    async function loadWeeklyFantasy({force=false}={}){
+      const token=++weeklyFantasyRenderToken;
+      const games=weeklyFantasyGames();
+      weeklyFantasyPlayers=[];weeklyFantasyLoaded=0;weeklyFantasyExpected=games.length;
+      renderWeeklyFantasyPlayers();
+      await Promise.allSettled(games.map(async game=>{
+        const players=await getAllFantasyPlayers(game,{force});
+        if(token!==weeklyFantasyRenderToken)return;
+        if(players.length)weeklyFantasyLoaded++;
+        for(const p of players)weeklyFantasyPlayers.push({...p,gameId:game.id});
+        renderWeeklyFantasyPlayers();
+      }));
+    }
+    // Keep expanded scouting notes visible, especially picks 9/10 on small iPhones.
+    // This is a one-shot scroll after the native <details> layout updates; it
+    // doesn't animate panel height or alter the normal collapse interaction.
+    function focusExpandedWaiver(entry){
+      if(!entry.open||!entry.isConnected)return;
+      const rect=entry.getBoundingClientRect();
+      const headerBottom=Math.max(0,document.querySelector(".app-header")?.getBoundingClientRect().bottom||0);
+      const viewportBottom=Math.min(window.innerHeight,
+        (window.visualViewport?.offsetTop||0)+(window.visualViewport?.height||window.innerHeight));
+      const visibleTop=headerBottom+12;
+      const visibleBottom=viewportBottom-28;
+      const available=Math.max(100,visibleBottom-visibleTop);
+      let offset=0;
+      if(rect.height>available){
+        // Tall notes: show the player's heading directly under the nav rail.
+        offset=rect.top-visibleTop;
+      }else if(rect.bottom>visibleBottom){
+        // Normally just reveal the clipped bottom without moving more than needed.
+        offset=rect.bottom-visibleBottom;
+        if(rect.top-offset<visibleTop)offset=rect.top-visibleTop;
+      }else if(rect.top<visibleTop){
+        offset=rect.top-visibleTop;
+      }
+      if(Math.abs(offset)>3){
+        const reduced=window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+        window.scrollBy({top:offset,behavior:reduced?"instant":"smooth"});
+      }
+    }
+    scheduleEl.addEventListener("toggle",event=>{
+      const entry=event.target;
+      if(!entry.matches?.("details.waiver-entry")||!entry.open)return;
+      scheduleEl.querySelectorAll("details.waiver-entry[open]").forEach(other=>{
+        if(other!==entry)other.open=false;
+      });
+      requestAnimationFrame(()=>{
+        if(entry.open)focusExpandedWaiver(entry);
+      });
+    },true);
+
+    scheduleEl.addEventListener("click",event=>{
+      const quickBell=event.target.closest("[data-waiver-reminder-quick]");
+      if(quickBell){
+        if(quickBell.disabled)return;
+        requestWaiverReminder(quickBell.getAttribute("aria-pressed")!=="true");
+        return;
+      }
+      const gamesView=event.target.closest("[data-games-view]");
+      if(gamesView){
+        const next=gamesView.dataset.gamesView;
+        gamesSubview=next;
+        localStorage.setItem("gridironGuide.gamesSubview.v1",gamesSubview);
+        renderSchedule();const pressed=scheduleEl.querySelector(`[data-games-view="${next}"]`);if(pressed){pressed.classList.remove("squish-pop");void pressed.offsetWidth;pressed.classList.add("squish-pop");}resetPageScrollForNavigation();return;
+      }
+      const resultsPicker=event.target.closest("[data-results-picker]");
+      if(resultsPicker){
+        const menu=resultsPicker.parentElement.querySelector(".results-view-menu");
+        const opening=menu.hidden;
+        menu.hidden=!opening;
+        resultsPicker.setAttribute("aria-expanded",String(opening));
+        resultsPicker.classList.remove("squish-pop");void resultsPicker.offsetWidth;resultsPicker.classList.add("squish-pop");
+        return;
+      }
+      if(!event.target.closest(".results-view-picker")){
+        const menu=scheduleEl.querySelector(".results-view-menu:not([hidden])");
+        if(menu){menu.hidden=true;menu.parentElement.querySelector("[data-results-picker]")?.setAttribute("aria-expanded","false");}
+      }
+      const conferenceButton=event.target.closest("[data-results-conference]");
+      if(conferenceButton){
+        if(sortMode!=="final"||resultsSubview!=="games"||resultsDivisionView!=="divisions")return;
+        resultsConferenceView=conferenceButton.dataset.resultsConference==="NFC"?"NFC":"AFC";
+        localStorage.setItem("gridironGuide.resultsConferenceView.v1",resultsConferenceView);
+        renderDivisionStandings();
+        scheduleEl.querySelectorAll("[data-results-conference]").forEach(b=>{const active=b.dataset.resultsConference===resultsConferenceView;b.classList.toggle("active",active);b.setAttribute("aria-pressed",String(active));});
+        const pressed=scheduleEl.querySelector(`[data-results-conference="${resultsConferenceView}"]`);
+        if(pressed){pressed.classList.remove("squish-pop");void pressed.offsetWidth;pressed.classList.add("squish-pop");}
+        return;
+      }
+      const divisionButton=event.target.closest("[data-results-division]");
+      if(divisionButton){resultsDivisionView=divisionButton.dataset.resultsDivision;localStorage.setItem("gridironGuide.resultsDivisionView.v1",resultsDivisionView);const content=scheduleEl.querySelector(":scope > .results-content");if(content){content.replaceChildren();content.dataset.display="";}renderSchedule();const pressed=scheduleEl.querySelector(`[data-results-division="${resultsDivisionView}"]`);if(pressed){pressed.classList.remove("squish-pop");void pressed.offsetWidth;pressed.classList.add("squish-pop");}resetPageScrollForNavigation();return;}
+      const view=event.target.closest("[data-results-view]");
+      if(view){resultsSubview=view.dataset.resultsView;localStorage.setItem("gridironGuide.resultsSubview.v1",resultsSubview);renderSchedule();resetPageScrollForNavigation();return;}
+      const modeBtn=event.target.closest(".results-section-header .fantasy-view-top button[data-fantasy-mode]");
+      if(modeBtn){
+        weeklyFantasyMode=modeBtn.dataset.fantasyMode==="waivers"?"waivers":"leaders";
+        const panel=document.getElementById("weeklyFantasy");
+        if(panel)panel.dataset.fantasyMode=weeklyFantasyMode;
+        document.querySelectorAll("[data-fantasy-mode]").forEach(button=>{
+          const active=button.dataset.fantasyMode===weeklyFantasyMode;
+          button.classList.toggle("active",active);
+          button.setAttribute("aria-pressed",String(active));
+        });
+        if(weeklyFantasyMode==="waivers"){
+          renderWaivers();
+          loadWaivers();
+        }else{
+          renderWeeklyFantasyPlayers();
+          if(!weeklyFantasyExpected&&!weeklyFantasyPlayers.length)loadWeeklyFantasy();
+        }
+        return;
+      }
+      const pos=event.target.closest("[data-weekly-position]");
+      if(pos){pos.classList.remove("squish-pop");void pos.offsetWidth;pos.classList.add("squish-pop");weeklyFantasyPosition=pos.dataset.weeklyPosition;document.querySelectorAll("[data-weekly-position]").forEach(btn=>{const active=btn.dataset.weeklyPosition===weeklyFantasyPosition;btn.classList.toggle("active",active);btn.setAttribute("aria-pressed",String(active));});renderWeeklyFantasyPlayers();return;}
+      const score=event.target.closest("[data-cycle-scoring]");
+      if(score){const i=WEEKLY_SCORING_MODES.findIndex(m=>m.key===weeklyScoringMode);weeklyScoringMode=WEEKLY_SCORING_MODES[(i+1)%WEEKLY_SCORING_MODES.length].key;localStorage.setItem("gridironGuide.weeklyScoring.v1",weeklyScoringMode);score.textContent=WEEKLY_SCORING_MODES.find(m=>m.key===weeklyScoringMode).label+" ↻";renderWeeklyFantasyPlayers();}
+    });
+
+    // Keep user-selected expansion state across card re-renders and score refreshes.
+    // Explicit choices override the default for each view; no stale open state
+    // is carried between Games and Results.
+    const expandedFantasyGames = new Map();
+    function fantasyViewKey(){return sortMode === "final" ? "results" : "games";}
+    function fantasyStateKey(id){return fantasyViewKey()+":"+id;}
+    const movingFantasyCards=new Set();
+    const fantasyMotionWaiters=new Set();
+    function waitForFantasyMotion(){
+      return movingFantasyCards.size?new Promise(resolve=>fantasyMotionWaiters.add(resolve)):Promise.resolve();
+    }
+    async function focusExpandedFantasy(block){
+      if(!block.isConnected)return;
+      const card=block.closest('.game-card');
+      if(!card)return;
+      const top=Math.max(0,document.querySelector('.app-header')?.getBoundingClientRect().bottom||0)+12;
+      const bottom=innerHeight-18, rect=card.getBoundingClientRect();
+      const delta=rect.top<top||rect.height>bottom-top?rect.top-top:Math.max(0,rect.bottom-bottom);
+      if(Math.abs(delta)<=3)return;
+      const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if(reduced){window.scrollBy(0,delta);return;}
+      await new Promise(resolve=>{
+        let timer,limit;
+        const finish=()=>{clearTimeout(timer);clearTimeout(limit);window.removeEventListener('scroll',onScroll);resolve();};
+        const onScroll=()=>{clearTimeout(timer);timer=setTimeout(finish,100);};
+        window.addEventListener('scroll',onScroll,{passive:true});
+        timer=setTimeout(finish,180);limit=setTimeout(finish,750);
+        window.scrollBy({top:delta,behavior:'smooth'});
+      });
+    }
+    async function animateFantasyDisclosure(block,opening){
+      if(movingFantasyCards.size||!block.isConnected||block.open===opening)return;
+      const card=block.closest('.game-card');
+      if(!card)return;
+      movingFantasyCards.add(block);
+      document.documentElement.classList.add('gg-card-moving');
+      const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const body=block.querySelector('.fantasy-body');
+      let animations=[];
+      try{
+        const cards=[...document.querySelectorAll('#schedule .game-card')];
+        const first=new Map(cards.map(el=>[el,el.getBoundingClientRect()]));
+        const before=first.get(card);
+        if(opening&&body){const html=initialFantasyBody(block.dataset.fantasyGame);if(body.innerHTML!==html)body.innerHTML=html;}
+        block.open=opening;
+        const after=card.getBoundingClientRect();
+        if(!reduced&&card.animate){
+          const timing={duration:opening?240:220,easing:'cubic-bezier(.22,.75,.25,1)',fill:'both'};
+          const delta=Math.abs(after.height-before.height);
+          // Read all final positions before writing animation styles.
+          const positions=cards.map(el=>({el,old:first.get(el),next:el.getBoundingClientRect()}));
+          for(const {el,old,next} of positions){
+            if(el===card)continue;
+            const dy=old.top-next.top;
+            if(Math.abs(dy)<1||Math.max(old.bottom,next.bottom)<0||Math.min(old.top,next.top)>innerHeight)continue;
+            animations.push(el.animate([{transform:'translateY('+dy+'px)'},{transform:'translateY(0)'}],timing));
+          }
+          if(opening&&delta>1){
+            animations.push(card.animate([{clipPath:'inset(0 -12px '+delta+'px -12px round 12px)'},{clipPath:'inset(0 -12px -12px -12px round 12px)'}],timing));
+            const handle=block.querySelector('summary');
+            if(handle)animations.push(handle.animate([{translate:'0 -'+delta+'px'},{translate:'0 0'}],timing));
+            if(body)animations.push(body.animate([{opacity:0},{opacity:1}],{duration:160,delay:80,fill:'both'}));
+          }else if(!opening&&delta>1){
+            // Keep the real collapsed card visible; animate only displaced siblings.
+            // No detached clone or visibility handoff, which could flash offscreen.
+          }
+          await Promise.allSettled(animations.map(a=>a.finished));
+        }
+        animations.forEach(a=>a.cancel());animations=[];
+        if(opening)await focusExpandedFantasy(block);
+        await new Promise(resolve=>setTimeout(resolve,50));
+      }finally{
+        animations.forEach(a=>a.cancel());
+        movingFantasyCards.delete(block);
+        document.documentElement.classList.remove('gg-card-moving');
+        for(const resolve of fantasyMotionWaiters)resolve();
+        fantasyMotionWaiters.clear();
+
+      }
+      if(opening&&block.isConnected&&block.open){
+        const game=allGames.find(g=>String(g.id)===block.dataset.fantasyGame);
+        if(game)hydrateFantasyBlocks([game]);
+      }
+    }
+    document.addEventListener('click',event=>{
+      const card=event.target.closest('.game-card[data-game-id]');
+      const block=card?.querySelector(':scope > details.fantasy-block');
+      if(!block)return;
+      const summary=event.target.closest('details.fantasy-block > summary');
+      if(summary){event.preventDefault();animateFantasyDisclosure(block,!block.open);return;}
+      if(event.target.closest('a,button,input,select,textarea,.media-control,.media-panel,[role="button"]'))return;
+      animateFantasyDisclosure(block,event.target.closest('.fantasy-body')?false:!block.open);
+    });
+    document.addEventListener("toggle", event => {
+      const block=event.target;
+      if(!block.matches?.("details.fantasy-block"))return;
+      const id=block.dataset.fantasyGame;
+      if(!id)return;
+      expandedFantasyGames.set(fantasyStateKey(id),block.open);
+      // Do not auto-scroll on initial render, tab navigation or restored state.
+    },true);
+
+    function initialFantasyBody(id){
+      const title="FANTASY LEADERS";
+      const cached=readCachedFantasy(FANTASY_CACHE_PREFIX + id);
+      return cached.length ? renderFantasyLeadersContent(title,cached) : `<div class="fantasy-list"><div class="fantasy-player"><span class="fantasy-player-name">Loading player stats<span class="fantasy-player-meta"><span class="fantasy-line">Fetching ESPN box score</span></span></span></div></div>`;
+    }
+    function renderFantasyBlock(game){
+      if(!isLiveGame(game)&&!isFinalGame(game))return "";
+      const title="FANTASY LEADERS";
+      const opened=expandedFantasyGames.get(fantasyStateKey(String(game.id)))??false;
+      const body=opened?initialFantasyBody(game.id):"";
+      return `<details class="fantasy-block" id="fantasy-${slug(game.id)}" data-fantasy-game="${escapeHtml(String(game.id))}" aria-label="${title}" ${(expandedFantasyGames.get(fantasyStateKey(String(game.id))) ?? false)?'open':''}>
+        <summary aria-label="Toggle fantasy leaders"><span class="card-grab-handle" aria-hidden="true"></span></summary>
+        <div class="gg-fantasy-reveal"><div class="fantasy-body">${body}</div></div>
+      </details>`;
+    }
+
+    function renderFantasyLeadersContent(title,leaders){
+      const top=leaders.filter(p=>p.position!=="K").slice(0,3);
+      return `<div class="fantasy-list">${top.map(renderFantasyPlayer).join("")}</div>`;
+    }
+
+    async function hydrateFantasyBlocks(games,{force=false}={}){
+      await waitForFantasyMotion();
+      const fantasyGames=games.filter(game=>isLiveGame(game)||isFinalGame(game));
+      const pending=await Promise.allSettled(fantasyGames.map(async game=>{
+        const el=document.querySelector(`#fantasy-${slug(game.id)} .fantasy-body`);
+        if(!el||!el.closest("details")?.open)return null;
+        const title="FANTASY LEADERS";
+        try{
+          const leaders=await getFantasyLeaders(game,{force});
+          return {el,html:leaders.length?renderFantasyLeadersContent(title,leaders):renderFantasyUnavailable(title,"No player stats returned")};
+        }catch(err){return {el,html:renderFantasyUnavailable(title,"ESPN stats unavailable")};}
+      }));
+      await waitForFantasyMotion();
+      for(const result of pending){
+        if(result.status!=="fulfilled"||!result.value)continue;
+        const {el,html}=result.value;
+        if(el.isConnected&&el.closest("details")?.open&&el.innerHTML!==html)el.innerHTML=html;
+      }
+    }
+
+    async function getFantasyLeaders(game,{force=false}={}){
+      const cacheKey = FANTASY_CACHE_PREFIX + game.id;
+      const cached = readFantasyCacheRecord(cacheKey);
+      if(!force && isGameFantasyCacheFresh(game,cached)) return cached.leaders;
+      if(fantasyLeaderRequests.has(cacheKey)) return fantasyLeaderRequests.get(cacheKey);
+
+      const request = (async()=>{
+        try{
+          const summary = await fetchJson(`${ESPN_SUMMARY_BASE}?event=${encodeURIComponent(game.id)}`);
+          const players = await resolveFantasyRosterPositions(summary,extractFantasyLeadersFromEspnSummary(summary));
+          const leaders = [...players.filter(p=>p.position!=="K").slice(0,3),...players.filter(p=>p.position==="K")];
+          if(leaders.length) cacheFantasy(cacheKey, leaders);
+          return leaders;
+        }catch(err){
+          if(cached.leaders.length) return cached.leaders;
+          throw err;
+        }
+      })().finally(()=>fantasyLeaderRequests.delete(cacheKey));
+
+      fantasyLeaderRequests.set(cacheKey,request);
+      return request;
+    }
+
+    function readFantasyCacheRecord(key){
+      try{
+        const cached = JSON.parse(localStorage.getItem(key) || "null");
+        return {
+          savedAt:Number(cached?.savedAt)||0,
+          leaders:Array.isArray(cached?.leaders)?cached.leaders:[]
+        };
+      }catch(err){ return {savedAt:0,leaders:[]}; }
+    }
+
+    function readCachedFantasy(key){
+      return readFantasyCacheRecord(key).leaders;
+    }
+
+    function fantasyCacheTtlMs(game){
+      if(!isFinalGame(game))return LIVE_FANTASY_CACHE_TTL_MS;
+      // ESPN's scoreboard can become final before its complete boxscore is ready.
+      // Recheck recent finals, then check older finals much less often.
+      const kickoff=new Date(game.dateTime).getTime();
+      const olderThanTwoDays=Number.isFinite(kickoff) && Date.now()-kickoff > 48*60*60*1000;
+      return olderThanTwoDays ? OLD_FINAL_FANTASY_CACHE_TTL_MS : RECENT_FINAL_FANTASY_CACHE_TTL_MS;
+    }
+    function isGameFantasyCacheFresh(game,cached){
+      return Boolean(cached.leaders.length && cached.savedAt > 0 && Date.now()-cached.savedAt < fantasyCacheTtlMs(game));
+    }
+    function isFantasyCacheFresh(game){
+      return isGameFantasyCacheFresh(game,readFantasyCacheRecord(FANTASY_CACHE_PREFIX+game.id));
+    }
+
+    function cacheFantasy(key, leaders){
+      try{ localStorage.setItem(key, JSON.stringify({ savedAt: Date.now(), leaders })); }catch(err){}
+    }
+
+    function extractFantasyLeadersFromEspnSummary(summary){
+      const playersById = new Map();
+      // ESPN receiving stat groups include both WRs and TEs. Prefer actual
+      // athlete/roster positions over the stat group when assigning filters.
+      const rosterPositions = new Map();
+      (summary?.rosters || []).forEach(teamRoster => {
+        (teamRoster?.roster || teamRoster?.athletes || []).forEach(item => {
+          const athlete = item?.athlete || item;
+          const position = normalizeFantasyPosition(athlete?.position || item?.position);
+          if(position && athlete?.id) rosterPositions.set(String(athlete.id), position);
+        });
+      });
+      const teamGroups = summary?.boxscore?.players || [];
+      teamGroups.forEach(teamBlock => {
+        const teamAbbr = teamBlock?.team?.abbreviation || "";
+        (teamBlock?.statistics || []).forEach(statGroup => {
+          const groupName = String(statGroup?.name || statGroup?.displayName || "").toLowerCase();
+          const labels = (statGroup?.labels || []).map(label => String(label).toLowerCase());
+          (statGroup?.athletes || []).forEach(row => {
+            const athlete = row?.athlete || {};
+            const id = athlete.id || athlete.uid || athlete.displayName || athlete.name;
+            const name = athlete.displayName || athlete.shortName || athlete.name;
+            if(!id || !name) return;
+            const stats = row?.stats || [];
+            const rosterPosition = rosterPositions.get(String(athlete.id || id)) || "";
+            const actualPosition = normalizeFantasyPosition(athlete.position || row?.position) || rosterPosition;
+            const inferredPosition = actualPosition || inferFantasyPosition(groupName, "");
+            const entry = playersById.get(id) || { id, name, teamAbbr, position:inferredPosition, points:0, receptions:0, line:[] };
+            // A real position must override an earlier group-based inference.
+            if(actualPosition) entry.position = actualPosition;
+            else if(!entry.position && inferredPosition) entry.position = inferredPosition;
+            if(teamAbbr && !entry.teamAbbr) entry.teamAbbr = teamAbbr;
+            if(groupName.includes("kicking")){
+              // ESPN kicking lines use made/attempted strings (e.g. FG 2/3, XP 3/3).
+              const made=(key)=>{const i=labels.findIndex(l=>l===key||l.startsWith(key+"/"));if(i<0)return 0;return parseStat(String(stats[i]).split("/")[0]);};
+              const fg=made("fg"), xp=made("xp");
+              entry.position="K";
+              entry.points+=fg*3+xp;
+              if(fg)entry.line.push(`${fg} FG`);
+              if(xp)entry.line.push(`${xp} XP`);
+            }
+            if(groupName.includes("passing")){
+              const passYds = statValue(labels, stats, "yds");
+              const passTd = statValue(labels, stats, "td");
+              const interceptions = statValue(labels, stats, "int");
+              entry.points += passYds / 25 + passTd * 4 - interceptions * 2;
+              if(passYds) entry.line.push(`${Math.round(passYds)} pass yds`);
+              if(passTd) entry.line.push(`${passTd} pass TD`);
+              if(interceptions) entry.line.push(`${interceptions} INT`);
+            }
+            if(groupName.includes("rushing")){
+              const rushYds = statValue(labels, stats, "yds");
+              const rushTd = statValue(labels, stats, "td");
+              entry.points += rushYds / 10 + rushTd * 6;
+              if(rushYds) entry.line.push(`${Math.round(rushYds)} rush yds`);
+              if(rushTd) entry.line.push(`${rushTd} rush TD`);
+            }
+            if(groupName.includes("receiving")){
+              const rec = statValue(labels, stats, "rec");
+              const recYds = statValue(labels, stats, "yds");
+              const recTd = statValue(labels, stats, "td");
+              entry.points += rec + recYds / 10 + recTd * 6;
+              entry.receptions += rec;
+              if(rec) entry.line.push(`${rec} rec`);
+              if(recYds) entry.line.push(`${Math.round(recYds)} rec yds`);
+              if(recTd) entry.line.push(`${recTd} rec TD`);
+            }
+            playersById.set(id, entry);
+          });
+        });
+      });
+      return Array.from(playersById.values())
+        .filter(player => player.points > 0)
+        .map(player => ({...player, points:Number(player.points.toFixed(1)), line:uniqueList(player.line).slice(0,3).join(" · ")}))
+        .sort((a,b) => b.points - a.points);
+    }
+
+    function normalizeFantasyPosition(raw){
+      const value = typeof raw === "object" && raw !== null
+        ? (raw.abbreviation || raw.name || raw.displayName || "") : raw;
+      const position = String(value || "").trim().toUpperCase();
+      const names = {"QUARTERBACK":"QB","RUNNING BACK":"RB","WIDE RECEIVER":"WR","TIGHT END":"TE","KICKER":"K","PLACE KICKER":"K"};
+      return names[position] || (position==="PK"?"K":["QB","RB","WR","TE","K"].includes(position) ? position : "");
+    }
+
+    function inferFantasyPosition(groupName, rawPosition){
+      const value = String(rawPosition || "").toUpperCase();
+      if(value && value.length <= 3) return value;
+      if(groupName.includes("passing")) return "QB";
+      if(groupName.includes("rushing")) return value || "RB";
+      if(groupName.includes("receiving")) return value || "WR";
+      if(groupName.includes("kicking")) return "K";
+      return value || "";
+    }
+
+    function uniqueList(list){
+      const seen = new Set();
+      return list.filter(item => item && !seen.has(item) && seen.add(item));
+    }
+
+    function statValue(labels, stats, label){
+      const index = labels.findIndex(item => item === label || item.includes(label));
+      if(index < 0) return 0;
+      return parseStat(stats[index]);
+    }
+
+    function parseStat(value){
+      if(value === undefined || value === null) return 0;
+      const match = String(value).match(/-?\d+(\.\d+)?/);
+      return match ? Number(match[0]) : 0;
+    }
+
+    function renderFantasyUnavailable(title, message){
+      return `<div class="fantasy-list"><div class="fantasy-player"><span>—</span><span class="fantasy-player-name">${escapeHtml(message)}<span class="fantasy-player-meta"><span class="fantasy-line">Waiting for box score data</span></span></span><span class="fantasy-points"></span></div></div>`;
+    }
+
+    // One shared player identity + stat presentation for final game cards and Top 10.
+    // The same badges and stat text are deliberately used in both views.
+    function renderFantasyPlayerMeta(player){
+      const team = player.teamAbbr ? `<span class="fantasy-team">${escapeHtml(player.teamAbbr)}</span>` : "";
+      const position = player.position ? `<span class="fantasy-tag">${escapeHtml(player.position)}</span>` : "";
+      const line = player.line ? `<span class="fantasy-line">${escapeHtml(player.line)}</span>` : "";
+      return `<div class="fantasy-player-meta">${team}${position}${line}</div>`;
+    }
+
+    function renderFantasyPlayer(player, index){
+      const mvpClass = index === 0 ? " mvp" : "";
+      return `<div class="fantasy-player${mvpClass}"><div class="fantasy-player-name">${escapeHtml(player.name)}</div>${renderFantasyPlayerMeta(player)}</div>`;
+    }
+
+    // Turns an ESPN broadcast string like "CBS" or "FOX" into one or more
+    // provider buttons. This is where streaming service detection happens.
+    function isParamountPlusGame(game){
+      const names=getBroadcastNames(game);
+      // Paramount+ carries the local NFL on CBS feed. CBS metadata is therefore
+      // a useful inferred signal; explicit Paramount+ metadata remains stronger.
+      return names.some(name=>/\bparamount\s*\+?\b/i.test(String(name))) ||
+             names.some(name=>/\bcbs\s*\d*\b/i.test(String(name)));
+    }
+
+    function getBroadcastNames(game){
+      const names=Array.isArray(game.broadcasts)?game.broadcasts.map(x=>String(x?.name||x?.shortName||"")).filter(Boolean):[];
+      if(game.network)names.push(String(game.network));
+      return Array.from(new Set(names));
+    }
+
+    function isRegionalFoxBroadcast(game){
+      const names=getBroadcastNames(game).map(name=>String(name).trim()).filter(Boolean);
+      const fox=names.some(name=>/\bfox(?:\s+one|\s+network|\s+sports)?\b/i.test(name));
+      if(!fox)return false;
+      const d=new Date(game.dateTime);
+      if(Number.isNaN(d.getTime()))return false;
+      // Regular-season Sunday afternoon FOX is a regional distribution even when
+      // ESPN labels the parent network simply as "FOX" or "FOX One".
+      const localDay=d.getDay();
+      const h=d.getHours();
+      const sundayAfternoon=localDay===0 && h>=9 && h<18;
+      const status=String(game.seasonType||game.season?.type||"").toLowerCase();
+      const looksPostseason=/post|playoff|wild|division|conference|super/.test(status);
+      return sundayAfternoon && !looksPostseason;
+    }
+
+    function isNationalFoxBroadcast(game){
+      const names=getBroadcastNames(game).map(name=>String(name).trim()).filter(Boolean);
+      if(isRegionalFoxBroadcast(game))return false;
+      // Reserve NATIONAL for explicit national wording or non-regional FOX windows
+      // (playoffs, special Saturday windows, etc.). Bare Sunday-afternoon FOX is regional.
+      return names.some(name=>/\bfox\b/i.test(name));
+    }
+
+    function isSundayTicketWindow(game){
+      const networkClass=classifyBroadcastNetwork(game);
+      const d=new Date(game?.dateTime);
+      if(Number.isNaN(d.getTime())||d.getDay()!==0)return false;
+      if(Number(game?.seasonType||0)!==2)return false;
+      return ["CBS","FOX_LOCAL","FOX_REGIONAL"].includes(networkClass);
+    }
+
+    function getSundayTicketEligibility(game){
+      if(!sundayTicketEnabled)return {eligible:false,type:"DISABLED",reason:"NFL Sunday Ticket setting is off."};
+      if(!isSundayTicketWindow(game))return {eligible:false,type:"NOT_ELIGIBLE",reason:"Sunday Ticket is for out-of-market regular-season Sunday afternoon CBS/FOX games."};
+      const local=getLocalAvailabilityStatus(game);
+      if(local.state==="OUT OF MARKET")return {eligible:true,type:"OUT_OF_MARKET",reason:"This Sunday CBS/FOX game is confirmed out of market for your detected TV market."};
+      if(local.state==="CONFIRMED LOCAL"||local.state==="LOCAL EXPECTED")return {eligible:false,type:"LOCAL",reason:"This game is local or expected locally, so Sunday Ticket is not needed."};
+      return {eligible:false,type:"UNVERIFIED",reason:"Local coverage is not confirmed yet; Sunday Ticket is not shown until the game is verified out of market."};
+    }
+
+    function getProviderKeysForGame(game){
+      // Do not manufacture a watch destination for late-season games whose
+      // kickoff time and distribution have not been assigned yet.
+      if(game?.kickoffTbd && (!game.network || game.network==="TBD"))return [];
+      const {networkClass,providers}=baseProvidersForNetwork(game);
+      let keys=[...providers];
+
+      // Streaming exclusives / special eligibility are independent additions.
+      if(isParamountPlusGame(game) && networkClass!=="CBS") keys.push("paramount");
+      if(isPeacockGame(game) && !keys.includes("peacock")) keys.push("peacock");
+      if(isNetflixGame(game) && !keys.includes("netflix")) keys.push("netflix");
+
+      // Provider-owned schedule validation. These caches refresh weekly and
+      // exist only to validate stream availability, not scores or game state.
+      if(providerValidationAllows(game,"peacock")) keys.push("peacock");
+      if(providerValidationAllows(game,"paramount")) keys.push("paramount");
+            if(providerValidationAllows(game,"prime")) keys.push("prime");
+
+      // DIRECTV is enrichment-only and requires separate verification.
+
+      // NFL+ is limited to live local/primetime regular-season/postseason games
+      // on mobile/tablet plus NFL Network. Do not expose it as a live option for
+      // ordinary Sunday-afternoon CBS/FOX games.
+      if(!keys.includes("nflplus") && ["NBC","ESPN","ABC","NFL_NETWORK","PRIME","NETFLIX","PEACOCK_EXCLUSIVE"].includes(networkClass)){
+        keys.push("nflplus");
+      }
+
+      // Unknown broadcasts retain a conservative fallback rather than manufacturing
+      // a full distribution set from a loose substring.
+      if(!keys.length){
+        const fallback=providerFromNetwork(game.network);
+        if(fallback && fallback!=="nflplus") keys.push(fallback);
+      }
+
+      if(getDirectvEligibility(game).eligible) keys.push("directv");
+      if(getSundayTicketEligibility(game).eligible) keys.push("sundayticket");
+
+      const seen=new Set();
+      return keys.filter(key=>PROVIDER_LINKS[key]&&!seen.has(key)&&seen.add(key));
+    }
+    function renderProviderIcons(providerKeys, primaryKey, game){
+      if(!providerKeys.length) return "";
+      return `<div class="provider-icons" aria-label="Available streaming options">${providerKeys.map(key => {
+        const provider = PROVIDER_LINKS[key];
+        const primary = key === primaryKey ? " primary" : "";
+        const providerTitle = key === "peacock"
+          ? (classifyBroadcastNetwork(game)==="PEACOCK_EXCLUSIVE" ? "Peacock Exclusive" : "Peacock / NBC")
+          : provider.label;
+        return `<button class="provider-icon ${key}${primary}" title="${escapeHtml(providerTitle)}" aria-label="Open ${escapeHtml(providerTitle)}" onclick='openProvider("${key}", ${JSON.stringify(game).replace(/'/g,"&#39;")})'>${providerIconLabel(key)}</button>`;
+      }).join("")}</div>`;
+    }
+    function providerIconLabel(key){
+      const labels = { prime:"PRIME", peacock:"PEACOCK", espn:"ESPN", paramount:"P+", directv:"DIRECTV", netflix:"NETFLIX", fox:"FOX", hulu:"HULU", nflnetwork:"NFL+", nflplus:"NFL+", youtubetv:"YT TV", sundayticket:"SUNDAY TICKET" };
+      return labels[key] || key.toUpperCase();
+    }
+    function getGameResult(game){
+      if(!isFinalGame(game) || !hasScore(game)) return {away:"", home:""};
+      const away = Number(game.awayScore);
+      const home = Number(game.homeScore);
+      if(!Number.isFinite(away) || !Number.isFinite(home) || away === home) return {away:"", home:""};
+      return away > home ? {away:"winner", home:"loser"} : {away:"loser", home:"winner"};
+    }
+    function getClockLine(game){
+      const detail = String(game.statusDetail || "").trim();
+
+      if (/half(?:time)?/i.test(detail)) {
+        return "HALFTIME";
+      }
+
+      if (game.period && game.clock) {
+        return `${Number(game.period)>4?"OT":`Q${escapeHtml(game.period)}`} · ${escapeHtml(game.clock)}`;
+      }
+
+      return escapeHtml(detail.replace(/\bQ(?:[5-9]|[1-9]\d+)\b/gi,"OT"));
+    }
+
+    const HELMET_SHELL_LAYER="data:image/png;base64,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";
+    const HELMET_STRIPE_LAYER="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAYAAAAEyCAYAAADzxQfBAAAUgElEQVR42u3da4xdVf3G8Wftvc+lk9ZebDR22k4paRoGOwhah9JKrYjYaUJvigqEBALBRA3RF9aYJrWNvgCjBsHYGF4IJEqN1bZSLSCgFbEolAZmgDcUeqFDjJ1OS+d29ll7/V/0rO06u1NjjH+Z034/yWTamTOXnPb8nnVfEgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAANCqDE8BWs0ll1xioyhSHMcyxsiYM/+N/XtJcs4piiI552StlXNO9Xpdzjm99tprMc8iQABgArn00kvtnDlzTJIk6ujo0IwZM1ySJJo9e7YqlYokqVKpaMqUKTLGKI7P1HFrrSQpiqK8+Btj8r8bY+Sck3NOknTixAmlaSprrWq1mo4dO6bR0VENDg7q0KFDGhgY0LPPPktIgAAA/tuWLl1qOzo6NGvWLM2bN0+TJ0/WzJkzVS6XTZIkxYc734r3rf00TZVl2VmFPWz5+0AIewg+GHxw+M+Fb5KUZZmstTp16pROnDih/v5+vfXWW3r99dfN448/HvEvCAIA+DesWrXKzp8/XwsWLFB7e7umTJmiUqnUVJSD4RnjW/O+qEdR5IwxyrKsqaCHQztRFOWf94U9fB8OB/mvzV8Aje/tnDONXoOLokj+LQyHLMtMlmU6efKk3nrrLdfb26u+vj7t3buX3gIIAFzYlixZks2bN88tWrRIc+fO1cyZM1WtVvOi2yi0StO0qQUeFHzjH+db6Y3HOf/xcJzft9b99/JFO/wevudQDAb/OP+zsywzjd6BC3sTYUhJMn7eofGznLVWJ0+e1KFDh/Tqq6+qt7dXzzzzDIEAAgDnt66urqyzs1NdXV265JJLNHXqVEVRlBdr30IPh2WKwzSFYm58gfbFN2h9u3CIJssylUqlpiLth32KQ0LFnkDYY/ChJMk0WvzuX71efAg1vs5JUhzHTeFz6tQpvfbaa9q3b59+/etfEwYgAHB+WLFihe3q6tKHP/xhtbe3m6BA+8lYVyzexRa7tTYvmoUhmqbvVwiDvDD7YSLPD9X47++/hw+gsDcRDgWFQ0vOOVP4vV1xVVHx9eLO/MJ5j8N/rzAQhoeH1dfXpxdeeEE///nPCQMQAGgtn/rUp+ySJUt02WWXafr06XnhrNfr+dBJOCHbKJwunIz1BdK3uMNlnGHhPfPuTCu8UcxNGAA+GMKehf/5wc8xhYBwYQCEYRT8fFMcJgprffh6CSakXTBM1RQWPqTiOFaSJIqiSCMjI+rr69MzzzyjX/3qV4QBCABMTNdcc43t7u5WV1eX3ve+9+VFP03TptU0vmhba8PhlLwV7LsDvij6EPBfO95a/mIxDYOlVqvlxd73JP5Zg01TS9+HRTEA/O/of98wQPz3KoSSK/ZifHCM18sZ73d3zilJEiVJImOMBgcHtW/fPj3++ON6/vnnCQMQAHh3dXd322XLlqm7u1szZsyQJI2OjirLMpXL5eLEbB4KfnVMOEnrW71+XD1crhkWTh8MxRU8xbF7/+dw2KjI/y7BGL0vvC7cGxBOKBcKvf/+xddF08RwOHTU+Jj5V0HhHx/2kpIkURzHcs7ppZde0mOPPabdu3cTBCAA8L9100032auvvloLFiyQMUb1et0MDw/7IRZnjMk3YoUBEBRt44ub3207PDycB8jbb78ta62z1urgwYOy1qper8sYYwYGBjQwMOD80tAsy/T000/HkrR8+XJbKpWaiuncuXNljJHfLzBnzhy1tbXJWqv3v//9amtrU1tbm5k0aVIxUJomp/3nwonhYHLaFFrxLpxXCMPCOWcKQ0AuDMJi7yAMAR98PiyPHj2qXbt2adu2bQQBCAD8/7niiivsddddpyuvvFJTp05VrVbT2NiYH5s34cSuc07VatXFcdy0+zZNU508eVKDg4Pm+PHjevPNN3Xs2DGlaao9e/a8qxumVq1alU2fPl2zZs1Se3u7pk+frpkzZ7pyuZzPG/glqeEKonMMBblwYjocXvJzFGHB92FT3J8Q9gz8Y33PSZJKpZKSJFF/f7927tzJpDEIAPx3fexjH7Pr16/X5Zdf7lv7qtVqqtVqvriZcrmcD1H4AvXOO+9oYGDAHTt2TEeOHNE//vEPbd++veUK1LXXXmvb29vV0dGh9vZ2zZ49W9VqtWloqBF6pjgslWVZvuzTDzeFxb04MeyLffGICl/wx/uYtVaVSkVJkujtt9/Wzp079bOf/YwgAAGA/9yaNWuya665Rpdeemle+P1wRriM0heh48eP64033tChQ4d05MgR/e53vztvj0BYtWqVvfjii7VgwQLNnTtXU6ZMURRFxs8jBENGLuwBhAGQZZmSJHHhuH9Rcc9C2HMIh438EFGpVDJJkujYsWPukUce0c6dOwkCEAD4961fvz5bs2aN5s6dqyzLNDY2lg83hMMQ/f39ev3113Xw4EG9+eab2rt37wV75s3atWttZ2enWbhwoWbNmtU07FWv1/1xESZ8/sKVRufiW/nFyeHi5jW/sioIAhdFkXp7e/XQQw/pr3/9K0EAAgDntm7dOrt69WozZ84cSVKapq5cLhvfej1x4oSOHDmivr4+HTx4UL///e855GwcV111VdbZ2akrrrhC8+fPV7VazXsF4Smk4wWA318QzguEq44aK5Zc8Xwi/7oMh46yLHPlclnOOT311FP69re/TQiAAECz66+/3t5www2aPXu2rLVGkpIkcZJ06tQpvfrqq2b//v165JFHKPj/gTvuuCP70Ic+pPnz57tKpZJvDGvsOHbjtPiLK4rGWyHU9HWNkDaFieX8OIxKpaLjx4/rwQcf1I4dOwgCEAC0VK+yX/jCF7Ro0aKwNWmOHz+u3t5e9/LLL7fkpO1EdeWVV9ru7m5z+eWXq6OjI9+YVq/XXeFoChP0BpoKuv94HMd578APN/nlpWF4+F5GvV7PVwy98MIL+upXv8q/KwiAC9U3v/lN+8lPfjJfnTI0NKTe3l7t27ePFuL/wNq1a7Nly5apq6tL5XLZ+SWyjSAw4d6BsKAXzz3yR1E3ehVNPYDCSaj5sRiVSkXDw8O6//779dvf/pZ/axAAF4qbbrop+8xnPqMZM2a4Wq2mN954Q88++6x++tOfUgjeBcuXL7fd3d1asmSJpk2b5vcZ5OP5xULuW/VZlpmwhR8uQfWFfpzVQq4RFCqVSiqVSnrqqae0efNm/u1BAJzPli1bZu+8807T0dGhwcFB/eEPf3AvvvhivoMW774vfelL9iMf+Yg6OjqMv8WseIyF32GsxjHT/yIkNM5RGk3HYzvnNGnSJB0+fFj33HOPXn75Zf4vgAA432zZssV+4hOfUH9/v3niiSf0k5/8hMncCezzn/989ulPf1oXXXSRnHOq1Wrhss/wNFETFPf864tnD/nNav7ehcZ8gr9Ix1UqFaVpqq1bt3IXAQiA88Xq1auz2267zR09elRPPPEEY/st5sYbb8zWrVunmTNn5uciNY6RcMVdx+PdiubnEYJlpC640MbvSXA+KCqVinbt2mW+973v0UAAAdDKNmzYkH3gAx9wf/zjH2nVtbi77rrLrlixQtOmTVOtVjPF+4rDIaDwVNPihLAv+P517A+WC29ka2trM6+88oq++MUvEgIgAFrRbbfdlv397393jz76KIX/PLJp0ya7dOlSE8exarVaeH9C8bA5FTeQFYaF/IogE55FFEWR6vW6qVar6u/v15YtW9wrr7zC/yEQAMBEcN1112U9PT1atGiR80dpJ0lyzrmA4j0KfjLY7zhu9BxceEx343A5NzQ0pI0bN2r//v2EAAgAYKK45ZZb7Gc/+1lNnjzZrxYy57plzCueP1S8pazRk/A7lV2pVNLY2Jg2btzIDWQgAICJ5u6777Yf/ehH/ZHUJpwELvYIVLgjOTyVtNH6919j/ORwkiTKskz33nuvdu3aRQiAAAAmkptvvtl+7nOf0+TJk02apvm1kePcP+zCewXyF3SwUijcP+DnFfw9D9///vdZSQYCAJiI7rvvPrto0SKTpmnTqiA/5n+uKyeLk8WSFKwQCu8a0A9+8APuGCAAAExEX/nKV7K1a9fmV1f6wh6eGSSdPQxUvGgmDAV/aJ0kJUmiDRs26G9/+xshQAAAmGh6enqy22+/XdOmTdPw8LBKpVK+3v9cQ0DFpaM+BMZbZpqmqTZu3KgDBw4QAgQAgIlo69at2cKFCzUyMqIkSZoKvb9wxvcCwh6AtfasHoIPijRN5VcHfeMb31Bvby8hQAAAmIg2bdqULV++PN84Fh4Y54t6lmUumDg2Zz79z0PkwusnjTGy1qpcLuvEiRNav349AXCBYYs40CI2b94c7dmzR9Vqtan4h619nblL2ISHzfnHFIu/dOZu6DRNNX36dP34xz/OeJYJAAAT1D333BNt27YtbPH7Qt+0Kcx/Pjg2wjTuHcjf/GOTJNHo6Kjp7OzUt771LcuzfOGgywe0mOeff37z0NDQpsWLFze16iWZcENYsETUhEtJpXyuwPhwiKJItVpNCxcu1Hve855Nzz333BaeaXoAACag7du3R/fff3++xt/fPewLfeN6UKPGPF94T3EYGr4n4JzzPQGtX79eK1eupCdwAWASGGhhq1atyu666y7Fcax6vZ7vHNaZIaE8FMZ98ReOmG70HpwxRrVaTT09PYwQ0AMAMFHt3r07uu+++2StVZIk+bLPYOewb+mfVfTDfQLFx1arVW3dupVJYQIAwET2m9/8Jrr33nubegDWWmOtDecHzrpXOAyEoFdgjDFmdHTULFy4UF//+tcJAQIAwETvCfzoRz9SrVZTlmVNK4H8EtDwhrEwFML5Af+1cRxrZGREPT096unpIQTOU8wBAOeRNWvWZF/+8pfz8378sQ+FS2TO2kdwrpvH4jjW0NCQVq9eTWORHgCAiWzHjh3Rrl27VKlUmj4eFvY4jpt2EocFP/xYHMey1mrq1Kn6zne+Qy+AAAAw0f3whz+MHn30UZVKpeJ+AOnMPQLOWtu0O9j/PS8MjY/HcazR0VG3dOlSx1DQ+YchIOA8dffdd2eLFy/W2NiY3xfgfMu+0eo3zrk8JMLVQOFkcRzHTpKGhobMmjVraDTSAwAw0W3YsCE6dOiQyuWy6vW6pOb7AbIsc+EdwsUlo415BJdlmdI0ZSiIAADQSh544AGdPn1a5XLZt/qbJoMVnCNUvFAmjmPnewhRFGl0dFRLly51K1asYJcwAQBgovvzn/8cPfTQQ2GLvmkZaBAKzlrrjDHOHyvt5wCiKPLbA5SmqW6//XaeWAIAQCvYvn17tGfPHk2aNCmf2A2Lv+db+2f+6ExjjsCEK4jSNDWzZ882d955J0NB5wEmgYELxAMPPGAvvvhijY2NnXVJfPjmTwot9hLCM4OMMbr22mtpQNIDANAKHnzwQY2MjJxV+MPdwsVrIxtDQPkOYT88lCSJtmzZQi+AAADQCv70pz/F27ZtU5IkZ50F5It/MQjCVUONuyVdkiSq1+vu6quvdkuWLCEECAAALdILiA8cOKByudw0nBOM/4+7JNRfRO8f59/fcccdPKkEAIBW8bWvfS1+5513FFwen/cGgiLv/MfC4Z9wiKhWq+miiy5yPT09LAslAAC0il/+8pd+d/BZdwcU9wN4xeOkfTjccMMNPKEEAIBW8fDDD8d9fX0qlUoKdwOHE8N+stjPGYTHRvvPp2mqefPmafXq1fQCCAAAreIXv/iFxsbGJKlp/N/fKhbeGNbgL5HPP26MUb1e1y233MITSgAAaBV79+6Nn3zyyfzYZx8AfhVQeKNYuHTU/9n3CNI01Xvf+16tW7eOXgABAKBVfPe7340HBgbyEPCre/xBcM7fMB+M//u/N7oEeS9g7dq1PKEEAIBWsnPnzrNa/OHkr7XWWWvl38Ljo/1Q0djYmObMmcNcAAEAoJU8/PDD8cGDB1WtVsPx/qZVQf6QuEIw5BfJ+BC4/vrreUIJAACtZMeOHarVak3DPMUloHEcOz/+7zeRhRfKjIyMaN68eVq5ciW9AAIAQKvYvXt3vH//fk2aNKlpqMcP8fhx/vCKSf/enxfk5xGYCyAAALSYxx57TLVa7awjH8JloX6COE1TpWkq55zq9bqiKFJbW5viONaCBQv08Y9/nF5AC0h4CgBIZ5aFrly50i5evFiDg4NyzqlUKqlUKskYo2q12jQvEG4cGxkZ0enTp3X48GENDAyoWq3yhBIAAFqtF9DZ2alqtZoX8dOnT8s5p6NHj2pkZEQnT57U4cOHNTo6qsOHD+vUqVM6cOBAzLPXergQBkCTW2+91X7wgx/UX/7yFx05ckTPPfccxR0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFyw/g/f0di3XPuqgwAAAABJRU5ErkJggg==";
+    const HELMET_FIXED_LAYER="data:image/png;base64,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";
+    const HELMET_SHADE_SCALE=1.35;
+    const TEAM_HELMET_COLORS = {
+      ARI:["#932540","#ffb713"],ATL:["#a21b31","#030102"],BAL:["#231972","#9f7d0e"],BUF:["#01348c","#c70d32"],
+      CAR:["#0184c7","#101a23"],CHI:["#0b182c","#c93904"],CIN:["#f24f16","#040201"],CLE:["#301f03","#fe3d01"],
+      DAL:["#829195","#033796"],DEN:["#f24f16","#042344"],DET:["#0175b4","#b1b9bf"],GB:["#1f3832","#feb713"],
+      HOU:["#032230","#a81a31"],IND:["#012d5f","#a3abaf"],JAX:["#016677","#d8a42c"],KC:["#dc1a38","#ffb91d"],
+      LV:["#a0aaad","#030304"],LAC:["#017fc3","#fdc411"],LAR:["#013693","#fda403"],MIA:["#018d95","#fb4d04"],
+      MIN:["#4c2882","#ffc731"],NE:["#012444","#c70d31"],NO:["#cdb98c","#121a22"],NYG:["#0b2465","#a81a32"],
+      NYJ:["#115741","#feffff"],PHI:["#014c54","#a6aeb1"],PIT:["#101a22","#feb713"],SF:["#a50303","#b69a5d"],
+      SEA:["#012444","#69bf29"],TB:["#cf0c0c","#ff7901"],TEN:["#0c2541","#4b93dc"],WAS:["#571616","#ffb713"]
+    };
+    const TEAM_HELMET_URL_CACHE=new Map();
+    function normalizeTeamAbbr(abbr){
+      const value = String(abbr || "").toUpperCase();
+      return value === "WSH" ? "WAS" : value;
+    }
+
+    function helmetTintMatrix(hex){
+      const value=parseInt(String(hex).replace("#",""),16);
+      const red=((value>>16)&255)/255*HELMET_SHADE_SCALE;
+      const green=((value>>8)&255)/255*HELMET_SHADE_SCALE;
+      const blue=(value&255)/255*HELMET_SHADE_SCALE;
+      return `${red} 0 0 0 0 ${green} 0 0 0 0 ${blue} 0 0 0 0 0 0 0 1 0`;
+    }
+
+    function getTeamHelmetUrl(key){
+      if(TEAM_HELMET_URL_CACHE.has(key))return TEAM_HELMET_URL_CACHE.get(key);
+      const [primary,secondary]=TEAM_HELMET_COLORS[key]||TEAM_HELMET_COLORS.NE;
+      const svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 306" preserveAspectRatio="xMidYMid meet"><defs><filter id="shell" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="${helmetTintMatrix(primary)}"/></filter><filter id="stripe" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="${helmetTintMatrix(secondary)}"/></filter></defs><image width="384" height="306" href="${HELMET_SHELL_LAYER}" filter="url(#shell)"/><image width="384" height="306" href="${HELMET_STRIPE_LAYER}" filter="url(#stripe)"/><image width="384" height="306" href="${HELMET_FIXED_LAYER}"/></svg>`;
+      const url=URL.createObjectURL(new Blob([svg],{type:"image/svg+xml"}));
+      TEAM_HELMET_URL_CACHE.set(key,url);
+      return url;
+    }
+
+    function renderTeamHelmet(abbr, name, side){
+      const key=normalizeTeamAbbr(abbr);
+      const src=getTeamHelmetUrl(key);
+      const directionClass=side==="home"?" face-left":"";
+      return `<img class="team-helmet${directionClass}" src="${src}" alt="${escapeHtml(name||key)} helmet" loading="lazy" decoding="async">`;
+    }
+    function renderTeam(abbr, name, logo, side, record, hasPossession, result){
+      const shortName = teamShortName(name, abbr);
+      // Intentionally ignore third-party logo URLs in this alternate build.
+      const logoHtml = renderTeamHelmet(abbr, name, side);
+      const possessionHtml = hasPossession ? `<span class="possession" title="Possession">🏈</span>` : "";
+      const recordHtml = record ? `<div class="team-record">${escapeHtml(record)}</div>` : "";
+      const resultClass = result ? ` ${result}` : "";
+      if(side === "home"){
+        return `
+      <div class="team-row home${resultClass}" data-team-side="home">
+          <span class="team-name"><span class="team-name-fit" style="--gg-name-width:${Math.max(1,Array.from(shortName.toUpperCase()).reduce((n,ch)=>n+("MW".includes(ch)?.91:"IJ".includes(ch)?.39:ch===" "?.35:.72),0)+.25)}">${escapeHtml(shortName)}</span></span>
+
+          ${possessionHtml}
+
+          <div class="team-stack">
+              ${logoHtml}
+              ${recordHtml}
+    </div>
+</div>`;
+      }
+      return `
+      <div class="team-row${resultClass}" data-team-side="away">
+          <div class="team-stack">
+              ${logoHtml}
+              ${recordHtml}
+          </div>
+
+          ${possessionHtml}
+
+          <span class="team-name"><span class="team-name-fit" style="--gg-name-width:${Math.max(1,Array.from(shortName.toUpperCase()).reduce((n,ch)=>n+("MW".includes(ch)?.91:"IJ".includes(ch)?.39:ch===" "?.35:.72),0)+.25)}">${escapeHtml(shortName)}</span></span>
+</div>`;
+    }
+
+    function teamShortName(name, abbr){
+      // Normalize provider/API abbreviation aliases before the display-name lookup.
+      // ESPN commonly returns WSH for Washington, while other NFL sources use WAS.
+      const aliases = {
+        WSH:"WAS"
+      };
+      abbr = String(abbr || "").toUpperCase();
+      abbr = aliases[abbr] || abbr;
+
+      const map = {
+        ARI:"Cardinals", ATL:"Falcons", BAL:"Ravens", BUF:"Bills", CAR:"Panthers", CHI:"Bears", CIN:"Bengals", CLE:"Browns",
+        DAL:"Cowboys", DEN:"Broncos", DET:"Lions", GB:"Packers", HOU:"Texans", IND:"Colts", JAX:"Jaguars", KC:"Chiefs",
+        LV:"Raiders", LAC:"Chargers", LAR:"Rams", MIA:"Dolphins", MIN:"Vikings", NE:"Patriots", NO:"Saints", NYG:"Giants",
+        NYJ:"Jets", PHI:"Eagles", PIT:"Steelers", SEA:"Seahawks", SF:"49ers", TB:"Buccaneers", TEN:"Titans", WAS:"Commanders"
+      };
+      return map[abbr] || String(name || abbr).replace(/^(Arizona|Atlanta|Baltimore|Buffalo|Carolina|Chicago|Cincinnati|Cleveland|Dallas|Denver|Detroit|Green Bay|Houston|Indianapolis|Jacksonville|Kansas City|Las Vegas|Los Angeles|Miami|Minnesota|New England|New Orleans|New York|Philadelphia|Pittsburgh|San Francisco|Seattle|Tampa Bay|Tennessee|Washington)\s+/i, "");
+    }
+
+    function providerFromNetwork(network){
+      const n = String(network || "").toLowerCase();
+      const hit = Object.keys(NETWORK_TO_PROVIDER).find(key => n.includes(key));
+      return hit ? NETWORK_TO_PROVIDER[hit] : "nflplus";
+    }
+
+    const PROVIDER_GAME_HOSTS={
+      espn:["espn.com"],
+      prime:["primevideo.com","amazon.com"],
+      peacock:["peacocktv.com"],
+      paramount:["paramountplus.com"],
+      fox:["foxsports.com","fox.com"],
+      hulu:["hulu.com"],
+      nflnetwork:["nfl.com"],
+      nflplus:["nfl.com"],
+      directv:["directv.com"],
+      netflix:["netflix.com"],
+      youtubetv:["tv.youtube.com","youtube.com"],
+      sundayticket:["tv.youtube.com","youtube.com"]
+    };
+
+    function sourceLinkMatchesProvider(link,providerKey){
+      if(!link?.href)return false;
+      try{
+        const host=new URL(link.href).hostname.toLowerCase().replace(/^www\./,"");
+        return (PROVIDER_GAME_HOSTS[providerKey]||[]).some(domain=>host===domain||host.endsWith(`.${domain}`));
+      }catch(_){return false;}
+    }
+
+    function findProviderSourceGameUrl(providerKey,game){
+      const links=Array.isArray(game?.sourceLinks)?game.sourceLinks:[];
+      const providerLinks=links.filter(link=>sourceLinkMatchesProvider(link,providerKey));
+      if(!providerLinks.length)return "";
+      const score=link=>{
+        const rel=(link.rel||[]).join(" ").toLowerCase();
+        const text=String(link.text||"").toLowerCase();
+        if(/watch|stream|live/.test(`${rel} ${text}`))return 3;
+        if(/event|summary|game/.test(`${rel} ${text}`))return 2;
+        return 1;
+      };
+      return providerLinks.sort((a,b)=>score(b)-score(a))[0]?.href||"";
+    }
+
+
+    function getProviderGameWebUrl(providerKey,provider,game){
+      // Highest priority: an exact provider/game URL already attached to the game.
+      const explicit=String(game?.providerUrls?.[providerKey]||((providerKey==="sundayticket")?(game?.providerUrls?.youtubetv||game?.providerUrls?.youtube):"")||"").trim();
+      if(explicit)return explicit;
+
+      // Next use a provider-specific event URL supplied by ESPN/source metadata.
+      const sourceUrl=findProviderSourceGameUrl(providerKey,game);
+      if(sourceUrl)return sourceUrl;
+
+      const id=encodeURIComponent(String(game?.id||""));
+      if(providerKey==="espn"){
+        // ESPN scoreboard event IDs have a stable game-detail route. Prefer an
+        // exact watch link from source metadata above whenever ESPN supplies one.
+        return id?`https://www.espn.com/nfl/game/_/gameId/${id}`:provider.web;
+      }
+      if(providerKey==="nflplus"||providerKey==="nflnetwork"){
+        // Do not synthesize NFL.com /games/ matchup URLs. NFL game slugs are not
+        // guaranteed to exist and can return 404s. If ESPN/source metadata supplied
+        // an actual NFL URL, sourceUrl above already returned it. Otherwise use the
+        // provider's stable NFL+/NFL Network landing page.
+        return provider.web;
+      }
+
+      // Prime, Netflix, Paramount+, Peacock, FOX, Hulu, DIRECTV and YouTube TV do
+      // not expose stable public per-game URLs in ESPN's normal scoreboard feed.
+      // When no exact event link is available, retain the provider's safest live/
+      // sports landing page rather than manufacturing a brittle URL.
+      return provider.web;
+    }
+
+    // Mobile launch policy:
+    // Android: package-targeted HTTPS intent first.
+    // iOS: native scheme first, then Universal Link/web fallback.
+    // Desktop: ordinary HTTPS.
+    async function openProvider(providerKey, game){
+      const provider=PROVIDER_LINKS[providerKey]||PROVIDER_LINKS.nflplus;
+      const gameWebUrl=getProviderGameWebUrl(providerKey,provider,game)||provider.web;
+      const trackedWebUrl=addTracking(gameWebUrl,game.id);
+      showToast(`Opening ${provider.label}`);
+      if(DEVICE.isAndroid){
+        window.location.href=getPlatformUrl(provider,trackedWebUrl,game);
+        return;
+      }
+      if(DEVICE.isIOS){
+        // A game-specific HTTPS Universal Link preserves the event destination;
+        // iOS opens the provider app when that provider claims the URL, otherwise Safari.
+        window.location.href=trackedWebUrl;
+        return;
+      }
+      window.open(trackedWebUrl,"_blank","noopener,noreferrer");
+    }
+
+    function updateHeaderOffset(){
+      const header=document.querySelector(".app-header");
+      if(!header)return;
+      // Use the fixed header's actual viewport bottom (including iOS safe area)
+      // instead of a pre-navigation height estimate.
+      const bottom=Math.ceil(header.getBoundingClientRect().bottom);
+      document.documentElement.style.setProperty("--header-height",`${Math.max(0,bottom)}px`);
+    }
+
+    function resetPageScrollForNavigation(){
+      // Fixed header buttons must reveal the beginning of their new view,
+      // even when the previous view was scrolled deep into a long list.
+      window.scrollTo(0,0);
+      requestAnimationFrame(()=>window.scrollTo(0,0));
+    }
+
+    function buildAndroidAppIntent(provider, webUrl, game){
+      if(!provider.androidPackage) return provider.androidWeb || webUrl;
+
+      // Android receives the provider's normal HTTPS/App Link but explicitly
+      // targets the installed package. If the app cannot handle it, Chrome uses
+      // the browser fallback URL.
+      const target=webUrl || provider.androidWeb || provider.web;
+      try{
+        const u=new URL(target);
+        return `intent://${u.host}${u.pathname}${u.search}#Intent;scheme=https;package=${provider.androidPackage};action=android.intent.action.VIEW;category=android.intent.category.BROWSABLE;S.browser_fallback_url=${encodeURIComponent(webUrl)};end`;
+      }catch(_){
+        return webUrl;
+      }
+    }
+
+    function getPlatformUrl(provider, webUrl, game){
+      if(DEVICE.isAndroid && provider.androidPackage){
+        return buildAndroidAppIntent(provider, webUrl, game);
+      }
+      if(DEVICE.isIOS){
+        return provider.ios || provider.iosUniversal || webUrl;
+      }
+      return webUrl;
+    }
+
+    function addTracking(url, gameId){
+      const joiner = url.includes("?") ? "&" : "?";
+      return `${url}${joiner}utm_source=nfl_game_launcher&game=${encodeURIComponent(gameId)}`;
+    }
+
+    function scheduleWeekKey(g){
+      const type=Number(g.seasonType||0),week=Number(g.weekNumber||0);
+      if(type&&week)return `${type}:${week}`;
+      const d=new Date(g.dateTime),rs=new Date("2026-09-06");
+      if(d<rs)return `1:${Math.max(1,Math.min(3,Math.floor((d-new Date("2026-08-01"))/604800000)+1))}`;
+      return `2:${Math.max(1,Math.min(18,Math.floor((d-rs)/604800000)+1))}`;
+    }
+    function buildScheduleWeeks(){
+      const groups=new Map();
+      allGames.forEach(g=>{const k=scheduleWeekKey(g);if(k){if(!groups.has(k))groups.set(k,[]);groups.get(k).push(g)}});
+      [1,2,3].forEach(w=>groups.has(`1:${w}`)||groups.set(`1:${w}`,[]));
+      for(let w=1;w<=18;w++)groups.has(`2:${w}`)||groups.set(`2:${w}`,[]);
+      [1,2,3,4,5].forEach(w=>groups.has(`3:${w}`)||groups.set(`3:${w}`,[]));
+      scheduleWeeks=[...groups].sort((a,b)=>{const A=a[0].split(":").map(Number),B=b[0].split(":").map(Number);return A[0]*100+A[1]-B[0]*100-B[1]}).map(([key,games])=>{const [type,week]=key.split(":").map(Number),ds=games.map(g=>new Date(g.dateTime));return{key,type,week,hasGames:!!games.length,min:ds.length?new Date(Math.min(...ds)):null,max:ds.length?new Date(Math.max(...ds)):null}});
+      if(!selectedScheduleWeek||!scheduleWeeks.some(w=>w.key===selectedScheduleWeek))selectedScheduleWeek=(findCurrentScheduleWeek()||scheduleWeeks[0])?.key;
+    }
+    function findCurrentScheduleWeek(now=Date.now()){
+      const populated=scheduleWeeks.filter(w=>w.hasGames);
+      if(!populated.length)return null;
+
+      // A week remains current through the expected end of its last game. After
+      // that window, advance to the next populated week—even before its first
+      // kickoff. This avoids Thursday launches incorrectly reopening the prior
+      // week because its Monday-night game happened less than four days ago.
+      const GAME_COMPLETION_WINDOW_MS=6*60*60*1000;
+      return populated.find(w=>{
+        const lastKickoff=allGames
+          .filter(g=>scheduleWeekKey(g)===w.key)
+          .reduce((latest,g)=>Math.max(latest,new Date(g.dateTime).getTime()||0),0);
+        return lastKickoff+GAME_COMPLETION_WINDOW_MS>now;
+      })||populated[populated.length-1];
+    }
+    function postseasonInfo(w){if(w.type!==3)return null;return({1:{label:"WILD CARD",tag:"PLAYOFFS",cls:"postseason"},2:{label:"DIV RD",tag:"PLAYOFFS",cls:"postseason"},3:{label:"CONF CHAMP",tag:"FINAL FOUR",cls:"championship"},4:{label:"PRO BOWL",tag:"ALL-STAR",cls:"postseason"},5:{label:"SUPER BOWL",tag:"CHAMPIONSHIP",cls:"superbowl"}})[w.week]||null}
+    function weekLabel(w){const p=postseasonInfo(w);return p?p.label:w.type===1?`PRE ${w.week}`:`WEEK ${w.week}`}
+    function weekClass(w){return postseasonInfo(w)?.cls||""}
+    function weekMetaTag(w){const p=postseasonInfo(w);return p?p.tag:(w.type===2&&w.week===1?"KICKOFF":"")}
+    function isKickoffWeek(w){return w.type===2&&w.week===1}
+    function weekDateRange(w){return w.min&&w.max?`${w.min.toLocaleDateString([],{month:"short",day:"numeric"})} - ${w.max.toLocaleDateString([],{month:"short",day:"numeric"})}`:""}
+    const SPECIAL_WEEK_META={
+      "wild-card":{tag:"PLAYOFFS",label:"WILD CARD",dates:"JAN 16 - 18"},
+      "divisional":{tag:"PLAYOFFS",label:"DIV RD",dates:"JAN 23 - 24"},
+      "conference":{tag:"FINAL FOUR",label:"CONF CHAMP",dates:"JAN 31"},
+      "pro-bowl":{tag:"ALL-STAR",label:"PRO BOWL",dates:"FEB 7"},
+      "super-bowl":{tag:"CHAMPIONSHIP",label:"SUPER BOWL",dates:"FEB 14"}
+    };
+    function specialWeekMetaFor(w){
+      if(!w || w.type!==3)return null;
+      const map={
+        1:{key:"wild-card",...SPECIAL_WEEK_META["wild-card"]},
+        2:{key:"divisional",...SPECIAL_WEEK_META.divisional},
+        3:{key:"conference",...SPECIAL_WEEK_META.conference},
+        4:{key:"pro-bowl",...SPECIAL_WEEK_META["pro-bowl"]},
+        5:{key:"super-bowl",...SPECIAL_WEEK_META["super-bowl"]}
+      };
+      return map[w.week]||null;
+    }
+
+    let weekMarkupSignature="";
+    function renderWeekNavigator(center=false){
+      buildScheduleWeeks();
+      syncHeaderWeekLabel();
+      const previewWeek=document.getElementById("previewWeek");
+      if(previewWeek){const w=scheduleWeeks.find(w=>w.key===selectedScheduleWeek);document.getElementById("previewWeekLabel").textContent=w?(weekDateRange(w)||specialWeekMetaFor(w)?.dates||weekLabel(w)):"Dates";}
+      if(!weekTimelineEl)return;
+      const markup=scheduleWeeks.map(w=>{
+        const special=specialWeekMetaFor(w);
+        const meta=special?.tag||weekMetaTag(w);
+        const label=special?.label||weekLabel(w);
+        const range=special?.dates||weekDateRange(w);
+        return `<button class="week-chip ${weekClass(w)}${special?` special-week ${special.key}`:""}${isKickoffWeek(w)?" kickoff":""}${w.hasGames?"":" future-empty"}${w.key===selectedScheduleWeek?" active":""}" data-week="${w.key}" aria-pressed="${w.key===selectedScheduleWeek}">${meta?`<span class="week-chip-meta">${meta}</span>`:""}<span class="week-chip-title">${label}</span>${range?`<span class="week-chip-range">${range}</span>`:""}</button>`;
+      }).join("");
+      const signature=markup.replace(/ active(?=")/g, "").replace(/aria-pressed="(?:true|false)"/g, 'aria-pressed="false"');
+      const rebuilt=signature!==weekMarkupSignature || !weekTimelineEl.children.length;
+      if(rebuilt){
+        weekMarkupSignature=signature;
+        weekTimelineEl.innerHTML=markup;
+        weekTimelineEl.querySelectorAll(".week-chip").forEach(b=>b.addEventListener("click",()=>selectScheduleWeek(b.dataset.week)));
+      }
+      weekTimelineEl.querySelectorAll(".week-chip").forEach(b=>{
+        const active=b.dataset.week===selectedScheduleWeek;
+        b.classList.toggle("active",active);
+        b.setAttribute("aria-pressed",String(active));
+      });
+      if(center||rebuilt)requestAnimationFrame(()=>centerSelectedWeek(center&&!rebuilt));
+      // Navigation chips can change header height after the initial paint.
+      updateHeaderOffset();
+
+    }
+    function centerSelectedWeek(animate=true){
+      const active=weekTimelineEl?.querySelector(".week-chip.active");
+      if(!active||!weekPanelActive)return;
+      const view=weekTimelineEl.getBoundingClientRect();
+      const chip=active.getBoundingClientRect();
+      const left=Math.max(0,Math.min(weekTimelineEl.scrollWidth-weekTimelineEl.clientWidth,weekTimelineEl.scrollLeft+chip.left-view.left-(view.width-chip.width)/2));
+      weekTimelineEl.scrollTo({left,behavior:animate&&!matchMedia("(prefers-reduced-motion: reduce)").matches?"smooth":"instant"});
+    }
+    function selectScheduleWeek(k){
+      if(k!==selectedScheduleWeek)expandedFantasyGames.clear();
+      selectedScheduleWeek=k;
+      const scoped=allGames.filter(g=>scheduleWeekKey(g)===selectedScheduleWeek);
+      if(sortMode==="live")sortMode="kickoff";
+      // Keep the selected dashboard destination when switching weeks.
+      localStorage.setItem("gridironGuide.sortMode",sortMode);
+      syncDashboardNavigation();
+      renderWeekNavigator(true);
+      syncDashboardNavigation();
+      renderSchedule();
+      resetPageScrollForNavigation();
+    }
+    function scrollWeekTimeline(dir){
+      if(!weekTimelineEl)return;
+      const chip=weekTimelineEl.querySelector(".week-chip");
+      const gap=parseFloat(getComputedStyle(weekTimelineEl).columnGap)||5;
+      const amount=(chip?.getBoundingClientRect().width||112)+gap;
+      const left=(Math.round(weekTimelineEl.scrollLeft/amount)+dir)*amount;
+      weekTimelineEl.scrollTo({left,behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"instant":"smooth"});
+    }
+
+    function updateWeekRange(games){ renderWeekNavigator(); }
+
+    function formatKickoff(game){
+      if(game?.kickoffTbd)return "DATE / TIME TBD";
+      return new Date(game?.dateTime||game).toLocaleString([], { weekday:"short", hour:"numeric", minute:"2-digit" });
+    }
+    function cleanStatus(status){
+      const s = String(status || "").toLowerCase();
+      if(!s) return "scheduled";
+      if(s === "pre") return "scheduled";
+      if(s === "post") return "final";
+      if(s === "in") return "live";
+      return s;
+    }
+    function displayStatus(status){
+      const s = cleanStatus(status);
+      if(s === "live") return "LIVE";
+      if(s === "final") return "FINAL";
+      if(s === "scheduled") return "SCHEDULED";
+      return s.toUpperCase();
+    }
+    function hasScore(game){ return game.awayScore !== undefined && game.homeScore !== undefined && game.awayScore !== "" && game.homeScore !== ""; }
+    function playIcon(){ return `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="rgba(7,17,29,.18)"/><path d="M10 8.5v7l6-3.5-6-3.5Z" fill="currentColor"/></svg>`; }
+    function bellIcon(filled=false){return `<svg viewBox="0 0 24 24" aria-hidden="true" fill="${filled?"currentColor":"none"}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg>`;}
+    function slug(value){ return String(value).toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,""); }
+    function escapeHtml(value){ return String(value ?? "").replace(/[&<>'"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[c])); }
+    const WEEK_PANEL_STATE_KEY="gridironGuide.weekPanelExpanded.v1";
+    let weekPanelActive=false;
+    try{weekPanelActive=localStorage.getItem(WEEK_PANEL_STATE_KEY)==="true";}catch(_){}
+    function dashboardDestination(){
+      return sortMode==="final"?(resultsSubview==="fantasy"?"fantasy":"results"):"games";
+    }
+    function syncResultsNavMenu(){
+      document.querySelectorAll("[data-results-nav-view]").forEach(btn=>{
+        const active=btn.dataset.resultsNavView===resultsDivisionView;
+        btn.classList.toggle("active",active);
+        btn.setAttribute("aria-pressed",String(active));
+      });
+      document.querySelectorAll("[data-fantasy-nav-view]").forEach(btn=>{
+        const active=btn.dataset.fantasyNavView===weeklyFantasyMode;
+        btn.classList.toggle("active",active);
+        btn.setAttribute("aria-pressed",String(active));
+      });
+    }
+    function closeResultsNavMenu(){
+      document.getElementById("previewWeek")?.setAttribute("aria-expanded","false");
+      document.querySelectorAll("[data-results-nav-menu],[data-fantasy-nav-menu],[data-week-nav-menu]").forEach(menu=>menu.hidden=true);
+      document.getElementById("headerWeekBtn")?.setAttribute("aria-expanded",String(weekPanelActive));
+      document.querySelectorAll("[data-dashboard='results'],[data-dashboard='fantasy'],[data-dashboard='games']").forEach(btn=>btn.setAttribute("aria-expanded","false"));
+    }
+    function syncHeaderWeekLabel(){
+      const label=document.getElementById("headerWeekLabel");
+      if(!label)return;
+      const selected=scheduleWeeks.find(w=>w.key===selectedScheduleWeek);
+      label.textContent=selected?weekLabel(selected):"WEEK --";
+      document.getElementById("headerWeekBtn")?.setAttribute("aria-label",selected?`Choose schedule week, ${weekLabel(selected)}, ${weekDateRange(selected)||specialWeekMetaFor(selected)?.dates||""}`:"Choose schedule week");
+      const dates=document.getElementById("headerWeekDates");
+      if(dates)dates.textContent=selected?(weekDateRange(selected)||specialWeekMetaFor(selected)?.dates||""):"";
+    }
+    function openDashboardPicker(kind){
+      const menu=document.querySelector(`[data-${kind}-nav-menu]`);
+      if(!menu)return;
+      const opening=menu.hidden;
+      closeResultsNavMenu();
+      if(kind==="week"){
+        buildScheduleWeeks();
+        const orderedWeeks=[...scheduleWeeks];
+        menu.innerHTML=orderedWeeks.map(w=>`<button type="button" data-nav-week="${escapeHtml(w.key)}" class="${w.key===selectedScheduleWeek?"active":""}">${escapeHtml(weekDateRange(w)||specialWeekMetaFor(w)?.dates||weekLabel(w))}</button>`).join("");
+        const selected=menu.querySelector(".active");
+        if(selected)requestAnimationFrame(()=>{menu.scrollTop=Math.max(0,selected.offsetTop-8);});
+      }
+      menu.hidden=!opening;
+      (kind==="week"?document.getElementById("previewWeek"):document.querySelector(`[data-dashboard='${kind}']`))?.setAttribute("aria-expanded",String(opening));
+    }
+    function syncDashboardNavigation(){
+      const selected=dashboardDestination()==="games"?gamesSubview:dashboardDestination();
+      syncResultsNavMenu();
+      const weekButton=document.getElementById("headerWeekBtn");
+      weekButton?.classList.remove("active");
+      weekButton?.setAttribute("aria-expanded",String(weekPanelActive));
+      document.getElementById("inlineWeekPicker").hidden=!weekPanelActive;
+      document.querySelectorAll("[data-dashboard]").forEach(btn=>{
+        const active=btn.dataset.dashboard===selected;
+        btn.classList.toggle("active",active);
+        btn.setAttribute("aria-current",active?"page":"false");
+        btn.setAttribute("aria-pressed",String(active));
+      });
+    }
+    function navigateDashboard(destination){
+      closeResultsNavMenu();
+      if(destination==="results"||destination==="fantasy"){
+        sortMode="final";
+        resultsSubview=destination==="fantasy"?"fantasy":"games";
+        localStorage.setItem("gridironGuide.resultsSubview.v1",resultsSubview);
+      }else{
+        sortMode="kickoff";
+        gamesSubview=destination==="live"?"live":destination==="local"?"local":"all";
+        localStorage.setItem("gridironGuide.gamesSubview.v1",gamesSubview);
+      }
+      localStorage.setItem("gridironGuide.sortMode",sortMode);
+      syncDashboardNavigation();
+      renderSchedule();
+      resetPageScrollForNavigation();
+    }
+    function initSortControls(){
+      document.getElementById("previewWeek").addEventListener("click",e=>{e.stopPropagation();openDashboardPicker("week");});
+      document.getElementById("previewWeek").addEventListener("keydown",e=>{if(e.key==="Escape")closeResultsNavMenu();});
+      document.getElementById("previewWeekMenu").addEventListener("keydown",e=>{if(e.key==="Escape"){closeResultsNavMenu();document.getElementById("previewWeek").focus();}});
+      document.getElementById("previewSport").addEventListener("click",()=>navigateDashboard("all"));
+      document.getElementById("headerWeekBtn")?.addEventListener("click",event=>{event.stopPropagation();weekPanelActive=!weekPanelActive;try{localStorage.setItem(WEEK_PANEL_STATE_KEY,String(weekPanelActive));}catch(_){}closeResultsNavMenu();syncDashboardNavigation();if(weekPanelActive){renderWeekNavigator();requestAnimationFrame(()=>centerSelectedWeek(false));}updateHeaderOffset();});
+      document.querySelectorAll("[data-dashboard]").forEach(btn=>{
+        btn.addEventListener("click",()=>{
+          const kind=btn.dataset.dashboard;
+          navigateDashboard(kind);
+        });
+      });
+      document.querySelectorAll("[data-results-nav-view]").forEach(btn=>btn.addEventListener("click",event=>{
+        event.stopPropagation();
+        resultsDivisionView=btn.dataset.resultsNavView;
+        localStorage.setItem("gridironGuide.resultsDivisionView.v1",resultsDivisionView);
+        navigateDashboard("results");
+      }));
+      document.querySelectorAll("[data-fantasy-nav-view]").forEach(btn=>btn.addEventListener("click",event=>{
+        event.stopPropagation();
+        weeklyFantasyMode=btn.dataset.fantasyNavView==="waivers"?"waivers":"leaders";
+        localStorage.setItem("gridironGuide.weeklyFantasyMode.v1",weeklyFantasyMode);
+        navigateDashboard("fantasy");
+      }));
+      document.querySelector("[data-week-nav-menu]")?.addEventListener("click",event=>{
+        const btn=event.target.closest("[data-nav-week]");
+        if(!btn)return;
+        event.stopPropagation();
+        closeResultsNavMenu();
+        selectScheduleWeek(btn.dataset.navWeek);
+      });
+      document.addEventListener("click",event=>{
+        if(!event.target.closest("[data-dashboard],[data-results-nav-menu],[data-fantasy-nav-menu],[data-week-nav-menu],#headerWeekBtn"))closeResultsNavMenu();
+      });
+      syncDashboardNavigation();
+    }
+    function openResultsForSelectedWeek(){
+      const resultsTab=document.querySelector('[data-dashboard="results"]');
+      if(!resultsTab)return;
+      sortMode="final";
+      localStorage.setItem("gridironGuide.sortMode",sortMode);
+      
+      resultsSubview="games";
+      syncDashboardNavigation();
+      renderSchedule();
+      resetPageScrollForNavigation();
+    }
+
+    document.addEventListener("click",event=>{
+      const target=event.target.closest?.('[data-open-results="true"]');
+      if(target)openResultsForSelectedWeek();
+    });
+    document.addEventListener("keydown",event=>{
+      if((event.key==="Enter"||event.key===" ") && event.target?.matches?.('[data-open-results="true"]')){
+        event.preventDefault();
+        openResultsForSelectedWeek();
+      }
+    });
+
+    function updateFilterCounts(){
+      const scoped=selectedScheduleWeek
+        ? allGames.filter(g=>scheduleWeekKey(g)===selectedScheduleWeek)
+        : allGames;
+      const counts={
+        kickoff:scoped.filter(g=>!isFinalGame(g)).length,
+        live:scoped.filter(isLiveGame).length,
+        final:scoped.filter(isFinalGame).length,
+        // Results is the other half of Games: each confirmed final adds one.
+        results:scoped.filter(isFinalGame).length,
+        // The Games counter mirrors the Games tab: only upcoming or live.
+        // Finished matchups remain accessible exclusively in Results.
+        games:scoped.filter(g=>!isFinalGame(g)).length,
+        local:remainingConfirmedLocalGames().length
+      };
+      document.querySelectorAll(".filter-count[data-count]").forEach(el=>{
+        const count=counts[el.dataset.count]||0;
+        // No zero badges: the destination stays tappable and shows an empty state.
+        el.textContent=count?String(count):"";
+        el.classList.toggle("has-count",count>0);
+      });
+
+    }
+
+    let scoreRefreshTimer=null;
+    let currentWeekRefreshPromise=null;
+
+    function clearScoreRefresh(){
+      clearTimeout(scoreRefreshTimer);
+      scoreRefreshTimer=null;
+    }
+
+    function scheduleScoreRefresh(){
+      clearScoreRefresh();
+      const current=getCurrentWeekDescriptor();
+      if(!current)return;
+      const games=allGames.filter(g=>scheduleWeekKey(g)===current.key);
+      if(!games.length || games.every(isFinalGame))return;
+
+      const hasLive=games.some(isLiveGame);
+      const now=Date.now();
+      const hasNearKickoff=games.some(g=>{
+        if(isFinalGame(g))return false;
+        const kickoff=new Date(g.dateTime).getTime();
+        return kickoff-now<6*60*60*1000 && kickoff-now>-60*60*1000;
+      });
+
+      // 30s only while a game is actually live. Otherwise 5m when games are
+      // approaching; no high-frequency polling for distant future games.
+      const delay=hasLive?LIVE_REFRESH_MS:(hasNearKickoff?PREGAME_REFRESH_MS:15*60*1000);
+      scoreRefreshTimer=setTimeout(refreshCurrentWeekState,delay);
+    }
+
+    function refreshCurrentWeekState(){
+      // De-dupe manual, startup, resume, and timer-driven refreshes. If a refresh
+      // is already running, every caller waits on the same request instead of
+      // creating another ESPN request.
+      if(currentWeekRefreshPromise)return currentWeekRefreshPromise;
+
+      currentWeekRefreshPromise=(async()=>{
+        await waitForFantasyMotion();
+        const updates=await fetchCurrentWeekState();
+        await waitForFantasyMotion();
+        if(updates.length){
+          const beforeSignature=visibleGameSignature();
+          const changes=mergeWeekState(updates);
+          if(changes.length){
+            // A final scoreboard update can arrive ahead of the complete boxscore.
+            // Discard the live fantasy snapshot so Results requests fresh stats.
+            changes.filter(c=>c.statusChanged&&isFinalGame(c.after)).forEach(c=>{
+              try{
+                localStorage.removeItem(FANTASY_CACHE_PREFIX+String(c.id));
+                localStorage.removeItem(WEEKLY_FANTASY_CACHE_PREFIX+String(c.id));
+              }catch(_){/* Storage may be unavailable in a preview webview. */}
+            });
+            const afterSignature=visibleGameSignature();
+            if(beforeSignature!==afterSignature){
+              // A game entered or left the active view (for example kickoff in
+              // Live or completion in Games). Rebuild only for that structural change.
+              renderWeekNavigator();
+              renderSchedule();
+              const newlyFinal=changes.filter(c=>c.statusChanged&&isFinalGame(c.after)).map(c=>c.after);
+              if(newlyFinal.length){
+                if(sortMode==="final"&&resultsSubview==="fantasy")loadWeeklyFantasy({force:true});
+                else if(sortMode==="final")hydrateFantasyBlocks(newlyFinal,{force:true});
+              }
+              animateRenderedScoreChanges(changes);
+            }else{
+              // Normal live polling patches only changed fields. Existing cards,
+              // scroll position, loaded helmets, and fantasy content stay mounted.
+              updateVisibleGameCards(changes);
+            }
+            // A game finishing may change the contextual Local count even if
+            // the All Games visible card list was otherwise unchanged.
+            syncGamesSubviewControls();
+          }
+        }
+        scheduleScoreRefresh();
+      })().finally(()=>{
+        currentWeekRefreshPromise=null;
+      });
+
+      return currentWeekRefreshPromise;
+    }
+
+    async function refreshFullSeasonSchedule({manual=false}={}){
+      try{
+        const games=await fetchEspnSchedule();
+        if(games?.length){
+          allGames=games;
+          writeSeasonScheduleCache(games);
+          ensureSeasonalStreamingRights({force:true});
+          renderWeekNavigator();
+          renderSchedule();
+          // The season response already includes current score/status state. Let the
+          // normal current-week scheduler handle the next lightweight refresh.
+          return true;
+        }
+      }catch(_){}
+      if(manual)showToast("Schedule refresh failed - using cached data");
+      return false;
+    }
+
+    let lastForegroundRefreshAt=0;
+
+    function restoreCurrentWeekSelection(){
+      if(!allGames.length)return;
+      buildScheduleWeeks();
+      const current=findCurrentScheduleWeek();
+      if(current && selectedScheduleWeek!==current.key){
+        selectScheduleWeek(current.key);
+      }
+    }
+
+    function refreshInBackground({fullSeason=false}={}){
+      // Let the cached UI paint before any network work begins.
+      setTimeout(()=>{
+        if(fullSeason){
+          refreshFullSeasonSchedule().catch(()=>{});
+        }else{
+          refreshCurrentWeekState().catch(()=>{});
+        }
+      },STARTUP_BACKGROUND_DELAY_MS);
+    }
+
+    function handleNativeResume(){
+      // Week browsing is deliberately session-only. Returning to the app always
+      // restores the actual current week instead of preserving an older manual
+      // selection from the suspended web view.
+      restoreCurrentWeekSelection();
+      const now=Date.now();
+      if(now-lastForegroundRefreshAt<RESUME_REFRESH_COOLDOWN_MS){
+        scheduleScoreRefresh();
+        return;
+      }
+      lastForegroundRefreshAt=now;
+      // Resume only refreshes volatile score/status data. It never requests GPS
+      // and never rebuilds the full season schedule.
+      refreshInBackground({fullSeason:false});
+    }
+
+    async function bootstrapSchedule(){
+      const cached=readSeasonScheduleCache();
+
+      if(cached?.games?.length){
+        // Paint immediately from cache, even if the cache is stale. Network
+        // refreshes happen after first paint and do not hold the startup UI.
+        allGames=cached.games;
+        ensureSeasonalStreamingRights();
+        renderWeekNavigator();
+        renderSchedule();
+        scheduleScoreRefresh();
+        // Exactly one startup network refresh: lightweight current-week state when
+        // the season cache is fresh, full-season refresh only when it is stale.
+        refreshInBackground({fullSeason:!cached.fresh});
+        return;
+      }
+
+      // First-ever launch has no usable cache, so one network load is necessary.
+      // Subsequent launches use the fast path above.
+      const refreshed=await refreshFullSeasonSchedule();
+      if(!refreshed){
+        // Keep the fallback in memory only. A bundled snapshot must never
+        // overwrite a fresher device cache or masquerade as network-fetched data.
+        allGames=buildEmbeddedScheduleFallback();
+        ensureSeasonalStreamingRights();
+        renderWeekNavigator();
+        renderSchedule();
+        showToast("Using the built-in 2026 schedule");
+      }
+      scheduleScoreRefresh();
+      ensureSeasonalStreamingRights();
+    }
+
+    function scheduleLiveRefresh(){
+      // Compatibility shim: optimized current-week scheduler owns polling now.
+      scheduleScoreRefresh();
+    }
+    updatePlatformUi();
+    updateHeaderOffset();
+
+    window.addEventListener(
+      "resize",
+      updateHeaderOffset
+    );
+    // Week chips and safe-area layout can change the fixed header after first
+    // paint. Track its actual height instead of relying on a stale fallback.
+    if(typeof ResizeObserver!=="undefined"){
+      const headerNode=document.querySelector(".app-header");
+      if(headerNode)new ResizeObserver(updateHeaderOffset).observe(headerNode);
+    }
+
+
+    weekPrevBtnEl?.addEventListener("click",()=>scrollWeekTimeline(-1));
+    weekNextBtnEl?.addEventListener("click",()=>scrollWeekTimeline(1));
+    initSortControls();
+    initSettingsControls();
+    initWaiverReminderSettings();
+
+    window.addEventListener("gridironGuideNativeResume",handleNativeResume);
+    document.addEventListener("visibilitychange",()=>{
+      if(document.visibilityState==="visible")handleNativeResume();
+    });
+
+    async function refreshVisibleFantasyOnDemand(){
+      if(sortMode==="final" && resultsSubview==="fantasy"){
+        if(weeklyFantasyMode==="waivers")await loadWaivers({force:true});
+        else await loadWeeklyFantasy({force:true});
+        return;
+      }
+      const games=getDisplayGames().filter(g=>isLiveGame(g)||isFinalGame(g));
+      if(games.length)await hydrateFantasyBlocks(games,{force:true});
+    }
+    const refreshBtnEl=document.querySelector("#refreshBtn");
+    const MANUAL_REFRESH_COOLDOWN_MS=2000;
+    let manualRefreshCooldownUntil=0;
+    let manualRefreshResetTimer=null;
+
+    refreshBtnEl?.addEventListener("click",async()=>{
+      const now=Date.now();
+      if(refreshBtnEl.disabled || now<manualRefreshCooldownUntil)return;
+
+      if(manualRefreshResetTimer){
+        clearTimeout(manualRefreshResetTimer);
+        manualRefreshResetTimer=null;
+      }
+
+      refreshBtnEl.disabled=true;
+      refreshBtnEl.textContent="Updating…";
+      refreshBtnEl.setAttribute("aria-busy","true");
+      showToast("Updating game data");
+
+      try{
+        await refreshCurrentWeekState();
+        await refreshVisibleFantasyOnDemand();
+        lastForegroundRefreshAt=Date.now();
+      }finally{
+        // Keep a short post-request cooldown so rapid taps cannot immediately
+        // start another network request as soon as the first one completes.
+        manualRefreshCooldownUntil=Date.now()+MANUAL_REFRESH_COOLDOWN_MS;
+        refreshBtnEl.textContent="Refresh";
+        refreshBtnEl.removeAttribute("aria-busy");
+        manualRefreshResetTimer=setTimeout(()=>{
+          refreshBtnEl.disabled=false;
+          manualRefreshResetTimer=null;
+        },MANUAL_REFRESH_COOLDOWN_MS);
+      }
+    });
+
+    // Start with cached schedule/UI first. Location is intentionally user-initiated
+    // from Settings -> Use location; cold launch never requests GPS permission.
+    bootstrapSchedule();
+    setTimeout(()=>{
+      const beforeCoverage=weeklyCoverageFingerprint(weeklyCoverageData);
+      refreshWeeklyCoverageData(true).then(payload=>{
+        if(weeklyCoverageFingerprint(payload)!==beforeCoverage){
+          // Coverage is optional enrichment. In All/Live views, update only
+          // badges and the filter button, never rebuild otherwise-visible cards.
+          updateLocalBadgesInPlace();
+          if(sortMode==="kickoff"&&gamesSubview==="local")renderSchedule();
+          else syncGamesSubviewControls();
+        }
+      }).catch(()=>{});
+    },1500);
+  
