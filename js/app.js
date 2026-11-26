@@ -3352,7 +3352,7 @@ let directvZip=localStorage.getItem(DIRECTV_ZIP_KEY)||"";
       document.getElementById("previewWeek").addEventListener("click",e=>{e.stopPropagation();openDashboardPicker("week");});
       document.getElementById("previewWeek").addEventListener("keydown",e=>{if(e.key==="Escape")closeResultsNavMenu();});
       document.getElementById("previewWeekMenu").addEventListener("keydown",e=>{if(e.key==="Escape"){closeResultsNavMenu();document.getElementById("previewWeek").focus();}});
-      document.getElementById("previewSport").addEventListener("change",event=>{const league=event.target.value;event.target.value="nfl";if(league==="mls"||league==="epl")location.href="./soccer.html?league="+league;});
+      
       window.addEventListener("pageshow",()=>{document.getElementById("previewSport").value="nfl";});
       document.getElementById("headerWeekBtn")?.addEventListener("click",event=>{event.stopPropagation();weekPanelActive=!weekPanelActive;try{localStorage.setItem(WEEK_PANEL_STATE_KEY,String(weekPanelActive));}catch(_){}closeResultsNavMenu();syncDashboardNavigation();if(weekPanelActive){renderWeekNavigator();requestAnimationFrame(()=>centerSelectedWeek(false));}updateHeaderOffset();});
       document.querySelectorAll("[data-dashboard]").forEach(btn=>{
