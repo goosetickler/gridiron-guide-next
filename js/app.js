@@ -55,12 +55,12 @@
     const WEEKLY_COVERAGE_CACHE_TTL_MS=5*60*1000;
     const WEEKLY_COVERAGE_FEED_URL="https://goosetickler.github.io/streamline-/local-coverage-2026.json";
     // v4/v6 invalidate early-game snapshots incorrectly retained after a game ended.
-    const FANTASY_CACHE_PREFIX = "gridironGuide.realFantasy.v4.";
+    const FANTASY_CACHE_PREFIX = ggLeagueCacheKey(GG_ACTIVE_LEAGUE.id,"gridironGuide.realFantasy.v4.");
     const LIVE_FANTASY_CACHE_TTL_MS = 90*1000;
     const RECENT_FINAL_FANTASY_CACHE_TTL_MS = 10*60*1000;
     const OLD_FINAL_FANTASY_CACHE_TTL_MS = 6*60*60*1000;
     const fantasyLeaderRequests = new Map();
-    const WEEKLY_FANTASY_CACHE_PREFIX="gridironGuide.weeklyFantasyAll.v6.";
+    const WEEKLY_FANTASY_CACHE_PREFIX=ggLeagueCacheKey(GG_ACTIVE_LEAGUE.id,"gridironGuide.weeklyFantasyAll.v6.");
     const weeklyFantasyRequests=new Map();
     let resultsSubview=localStorage.getItem("gridironGuide.resultsSubview.v1")==="fantasy"?"fantasy":"games";
     let resultsDivisionView=localStorage.getItem("gridironGuide.resultsDivisionView.v1")==="divisions"?"divisions":"weekly";
@@ -78,24 +78,7 @@
     // Waiver recommendations are specific to a REGULAR-SEASON week. The JSON
     // holds only published weeks, beginning with Week 10 in 2026. New weeks can
     // be appended without copying old recommendations or changing this HTML.
-    function validWaiverPlayer(p){
-      return p&&typeof p.name==="string"&&typeof p.team==="string"&&
-        ["QB","RB","WR","TE","K"].includes(p.position)&&
-        (["High","Medium","Low"].includes(p.rostered)||["High","Medium","Low"].includes(p.availability))&&
-        (p.summary===undefined||(typeof p.summary==="string"&&p.summary.length<=700));
-    }
-    function validWaiverPayload(data){
-      return data&&Number(data.season)===2026&&data.weeks&&
-        typeof data.weeks==="object"&&!Array.isArray(data.weeks)&&
-        Object.keys(data.weeks).length>0&&
-        Object.entries(data.weeks).every(([week,entry])=>
-          /^(?:[1-9]|1[0-8])$/.test(week)&&entry&&Array.isArray(entry.players)&&
-          entry.players.every(validWaiverPlayer));
-    }
-    function selectedWaiverWeek(){
-      const [type,week]=String(selectedScheduleWeek||"").split(":").map(Number);
-      return type===2&&Number.isInteger(week)&&week>=1&&week<=18?week:null;
-    }
+    function selectedWaiverWeek(){return ggNflWaiverWeek(selectedScheduleWeek);}
     async function loadWaivers({force=false}={}){
       if(waiverLoadPromise&&!force)return waiverLoadPromise;
       const load=(async()=>{
@@ -1707,33 +1690,7 @@ let directvZip=localStorage.getItem(DIRECTV_ZIP_KEY)||"";
       AFC:{East:["BUF","MIA","NE","NYJ"],North:["BAL","CIN","CLE","PIT"],South:["HOU","IND","JAX","TEN"],West:["DEN","KC","LAC","LV"]},
       NFC:{East:["DAL","NYG","PHI","WSH"],North:["CHI","DET","GB","MIN"],South:["ATL","CAR","NO","TB"],West:["ARI","LAR","SF","SEA"]}
     };
-    function calculateDivisionStandings(){
-      const teams=new Map(NFL_TEAMS.map(t=>[t.id,{...t,overall:[0,0,0],division:[0,0,0],games:0}]));
-      const membership=new Map();
-      for(const [conf,divisions] of Object.entries(NFL_DIVISIONS))for(const [division,ids] of Object.entries(divisions))for(const id of ids)membership.set(id,conf+" "+division);
-      const seen=new Set();
-      for(const g of allGames){
-        if(Number(g.seasonType)!==2||Number(g.seasonYear||getSeasonYear())!==getSeasonYear()||!isFinalGame(g)||!hasScore(g))continue;
-        const away=teams.get(String(g.awayAbbr||"").toUpperCase());
-        const home=teams.get(String(g.homeAbbr||"").toUpperCase());
-        if(!away||!home||away.id===home.id||seen.has(String(g.id)))continue;
-        const a=Number(g.awayScore),h=Number(g.homeScore);
-        if(!Number.isFinite(a)||!Number.isFinite(h))continue;
-        seen.add(String(g.id));
-        const indexA=a>h?0:a<h?1:2,indexH=h>a?0:h<a?1:2;
-        away.overall[indexA]++;home.overall[indexH]++;away.games++;home.games++;
-        if(membership.get(away.id)===membership.get(home.id)){
-          away.division[indexA]++;home.division[indexH]++;
-        }
-      }
-      const pct=t=>(t.overall[0]+t.overall[2]/2)/Math.max(1,t.games);
-      const groups=[];
-      for(const [conf,divisions] of Object.entries(NFL_DIVISIONS))for(const [direction,ids] of Object.entries(divisions)){
-        const entries=ids.map(id=>teams.get(id)).sort((a,b)=>pct(b)-pct(a)||(b.division[0]+b.division[2]/2)/Math.max(1,b.division.reduce((x,y)=>x+y,0))-(a.division[0]+a.division[2]/2)/Math.max(1,a.division.reduce((x,y)=>x+y,0))||a.name.localeCompare(b.name));
-        groups.push({conference:conf,name:conf+" "+direction,entries});
-      }
-      return {groups,completed:seen.size,seasonGames:allGames.filter(g=>Number(g.seasonType)===2&&Number(g.seasonYear||getSeasonYear())===getSeasonYear()).length};
-    }
+    function calculateDivisionStandings(){return ggNflDivisionStandings(allGames,NFL_TEAMS,NFL_DIVISIONS,getSeasonYear(),isFinalGame,hasScore);}
     function renderDivisionStandings(){
       const host=scheduleEl.querySelector(":scope > .results-content");
       if(!host||sortMode!=="final"||resultsSubview!=="games"||resultsDivisionView!=="divisions")return;
@@ -2589,22 +2546,6 @@ let directvZip=localStorage.getItem(DIRECTV_ZIP_KEY)||"";
     // The box score groups receivers by statistic, not by roster position.
     // Fetch the two team rosters once per session to distinguish TEs from WRs.
     const fantasyTeamRosterRequests = new Map();
-    function fantasyRosterEntries(payload){
-      const result=[];
-      const visit=(node,depth=0)=>{
-        if(!node||depth>7)return;
-        if(Array.isArray(node)){node.forEach(item=>visit(item,depth+1));return;}
-        if(typeof node!=="object")return;
-        const athlete=node.athlete || (node.id && (node.displayName||node.fullName) ? node : null);
-        if(athlete){
-          const pos=normalizeFantasyPosition(athlete.position || node.position);
-          if(pos)result.push({id:String(athlete.id||""),name:String(athlete.displayName||athlete.fullName||athlete.name||"").trim().toLowerCase(),position:pos});
-        }
-        for(const key of ["athletes","roster","items","groups","entries"]){if(node[key])visit(node[key],depth+1);}
-      };
-      visit(payload);
-      return result;
-    }
     async function fantasyTeamRoster(teamId){
       if(!teamId)return [];
       const key=String(teamId);
@@ -2642,7 +2583,7 @@ let directvZip=localStorage.getItem(DIRECTV_ZIP_KEY)||"";
     }
     function weeklyFantasyScore(player){
       const scoring=WEEKLY_SCORING_MODES.find(m=>m.key===weeklyScoringMode)||WEEKLY_SCORING_MODES[0];
-      return Number(player.points||0)-Number(player.receptions||0)*(1-scoring.bonus);
+      return ggNflFantasyScore(player,scoring.bonus);
     }
     function renderWeeklyFantasyPlayers(){
       const el=document.querySelector("#weeklyFantasyContent");
@@ -2970,118 +2911,6 @@ let directvZip=localStorage.getItem(DIRECTV_ZIP_KEY)||"";
 
     function cacheFantasy(key, leaders){
       try{ localStorage.setItem(key, JSON.stringify({ savedAt: Date.now(), leaders })); }catch(err){}
-    }
-
-    function extractFantasyLeadersFromEspnSummary(summary){
-      const playersById = new Map();
-      // ESPN receiving stat groups include both WRs and TEs. Prefer actual
-      // athlete/roster positions over the stat group when assigning filters.
-      const rosterPositions = new Map();
-      (summary?.rosters || []).forEach(teamRoster => {
-        (teamRoster?.roster || teamRoster?.athletes || []).forEach(item => {
-          const athlete = item?.athlete || item;
-          const position = normalizeFantasyPosition(athlete?.position || item?.position);
-          if(position && athlete?.id) rosterPositions.set(String(athlete.id), position);
-        });
-      });
-      const teamGroups = summary?.boxscore?.players || [];
-      teamGroups.forEach(teamBlock => {
-        const teamAbbr = teamBlock?.team?.abbreviation || "";
-        (teamBlock?.statistics || []).forEach(statGroup => {
-          const groupName = String(statGroup?.name || statGroup?.displayName || "").toLowerCase();
-          const labels = (statGroup?.labels || []).map(label => String(label).toLowerCase());
-          (statGroup?.athletes || []).forEach(row => {
-            const athlete = row?.athlete || {};
-            const id = athlete.id || athlete.uid || athlete.displayName || athlete.name;
-            const name = athlete.displayName || athlete.shortName || athlete.name;
-            if(!id || !name) return;
-            const stats = row?.stats || [];
-            const rosterPosition = rosterPositions.get(String(athlete.id || id)) || "";
-            const actualPosition = normalizeFantasyPosition(athlete.position || row?.position) || rosterPosition;
-            const inferredPosition = actualPosition || inferFantasyPosition(groupName, "");
-            const entry = playersById.get(id) || { id, name, teamAbbr, position:inferredPosition, points:0, receptions:0, line:[] };
-            // A real position must override an earlier group-based inference.
-            if(actualPosition) entry.position = actualPosition;
-            else if(!entry.position && inferredPosition) entry.position = inferredPosition;
-            if(teamAbbr && !entry.teamAbbr) entry.teamAbbr = teamAbbr;
-            if(groupName.includes("kicking")){
-              // ESPN kicking lines use made/attempted strings (e.g. FG 2/3, XP 3/3).
-              const made=(key)=>{const i=labels.findIndex(l=>l===key||l.startsWith(key+"/"));if(i<0)return 0;return parseStat(String(stats[i]).split("/")[0]);};
-              const fg=made("fg"), xp=made("xp");
-              entry.position="K";
-              entry.points+=fg*3+xp;
-              if(fg)entry.line.push(`${fg} FG`);
-              if(xp)entry.line.push(`${xp} XP`);
-            }
-            if(groupName.includes("passing")){
-              const passYds = statValue(labels, stats, "yds");
-              const passTd = statValue(labels, stats, "td");
-              const interceptions = statValue(labels, stats, "int");
-              entry.points += passYds / 25 + passTd * 4 - interceptions * 2;
-              if(passYds) entry.line.push(`${Math.round(passYds)} pass yds`);
-              if(passTd) entry.line.push(`${passTd} pass TD`);
-              if(interceptions) entry.line.push(`${interceptions} INT`);
-            }
-            if(groupName.includes("rushing")){
-              const rushYds = statValue(labels, stats, "yds");
-              const rushTd = statValue(labels, stats, "td");
-              entry.points += rushYds / 10 + rushTd * 6;
-              if(rushYds) entry.line.push(`${Math.round(rushYds)} rush yds`);
-              if(rushTd) entry.line.push(`${rushTd} rush TD`);
-            }
-            if(groupName.includes("receiving")){
-              const rec = statValue(labels, stats, "rec");
-              const recYds = statValue(labels, stats, "yds");
-              const recTd = statValue(labels, stats, "td");
-              entry.points += rec + recYds / 10 + recTd * 6;
-              entry.receptions += rec;
-              if(rec) entry.line.push(`${rec} rec`);
-              if(recYds) entry.line.push(`${Math.round(recYds)} rec yds`);
-              if(recTd) entry.line.push(`${recTd} rec TD`);
-            }
-            playersById.set(id, entry);
-          });
-        });
-      });
-      return Array.from(playersById.values())
-        .filter(player => player.points > 0)
-        .map(player => ({...player, points:Number(player.points.toFixed(1)), line:uniqueList(player.line).slice(0,3).join(" · ")}))
-        .sort((a,b) => b.points - a.points);
-    }
-
-    function normalizeFantasyPosition(raw){
-      const value = typeof raw === "object" && raw !== null
-        ? (raw.abbreviation || raw.name || raw.displayName || "") : raw;
-      const position = String(value || "").trim().toUpperCase();
-      const names = {"QUARTERBACK":"QB","RUNNING BACK":"RB","WIDE RECEIVER":"WR","TIGHT END":"TE","KICKER":"K","PLACE KICKER":"K"};
-      return names[position] || (position==="PK"?"K":["QB","RB","WR","TE","K"].includes(position) ? position : "");
-    }
-
-    function inferFantasyPosition(groupName, rawPosition){
-      const value = String(rawPosition || "").toUpperCase();
-      if(value && value.length <= 3) return value;
-      if(groupName.includes("passing")) return "QB";
-      if(groupName.includes("rushing")) return value || "RB";
-      if(groupName.includes("receiving")) return value || "WR";
-      if(groupName.includes("kicking")) return "K";
-      return value || "";
-    }
-
-    function uniqueList(list){
-      const seen = new Set();
-      return list.filter(item => item && !seen.has(item) && seen.add(item));
-    }
-
-    function statValue(labels, stats, label){
-      const index = labels.findIndex(item => item === label || item.includes(label));
-      if(index < 0) return 0;
-      return parseStat(stats[index]);
-    }
-
-    function parseStat(value){
-      if(value === undefined || value === null) return 0;
-      const match = String(value).match(/-?\d+(\.\d+)?/);
-      return match ? Number(match[0]) : 0;
     }
 
     function renderFantasyUnavailable(title, message){
