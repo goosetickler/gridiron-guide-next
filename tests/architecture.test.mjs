@@ -5,7 +5,7 @@ import vm from 'node:vm';
 const source = path => readFileSync(new URL('../'+path,import.meta.url),'utf8');
 function setup(fetchJson=async()=>({events:[]})){
   const ctx=vm.createContext({fetchJson,getSeasonYear:()=>2026});
-  vm.runInContext(source('js/core/leagues.js')+'\nconst ESPN_BASE=GG_ACTIVE_LEAGUE.scoreboard;\n'+source('js/core/games.js')+'\n'+source('js/core/card-motion.js')+'\n'+source('js/sports/nfl/adapter.js'),ctx);
+  vm.runInContext(source('js/core/leagues.js')+'\nconst ESPN_BASE=GG_ACTIVE_LEAGUE.scoreboard;\n'+source('js/core/games.js')+'\n'+source('js/core/card-motion.js')+'\n'+source('js/core/schedule.js')+'\n'+source('js/sports/nfl/media.js')+'\n'+source('js/sports/nfl/adapter.js'),ctx);
   return ctx;
 }
 const run=(ctx,code)=>vm.runInContext(code,ctx);
@@ -24,3 +24,9 @@ test('invalid first occurrence does not suppress valid game',()=>{const c=setup(
 test('daily groups sort local calendar dates and ignore invalid dates',()=>{const c=setup();assert.equal(run(c,'ggGroupGamesByDate([{dateTime:new Date(2026,8,11,12)},{dateTime:new Date(2026,8,10,12)},{dateTime:"bad"}]).map(g=>g.key).join()'),'2026-09-10,2026-09-11')});
 test('FLIP skips offscreen and subpixel movements',()=>{const c=setup();assert.equal(c.ggVisibleFlipOffset({top:100,bottom:200},{top:150,bottom:250},800),-50);assert.equal(c.ggVisibleFlipOffset({top:900,bottom:1000},{top:950,bottom:1050},800),null);assert.equal(c.ggVisibleFlipOffset({top:100,bottom:200},{top:100.5,bottom:200.5},800),null)});
 test('FLIP animates only displaced visible siblings',()=>{const c=setup();const calls=[];const active={animate(){throw Error('active card animated')}};const sibling={animate(frames,timing){calls.push({frames,timing});return 'animation'}};const animations=[];c.ggAnimateDisplacedCards([{el:active,old:{top:10,bottom:50},next:{top:20,bottom:60}},{el:sibling,old:{top:100,bottom:200},next:{top:150,bottom:250}}],active,800,{duration:240},animations);assert.equal(calls.length,1);assert.equal(calls[0].frames[0].transform,'translateY(-50px)');assert.equal(animations[0],'animation')});
+
+test('NFL weekly groups preserve empty weeks and chronological order',()=>{const c=setup();const weeks=c.ggNflScheduleWeeks([{seasonType:2,weekNumber:2,dateTime:'2026-09-17T00:00:00Z'}]);assert.equal(weeks.length,26);assert.equal(weeks[0].key,'1:1');assert.equal(weeks.find(w=>w.key==='2:2').hasGames,true);assert.equal(weeks.find(w=>w.key==='2:1').hasGames,false)});
+test('current NFL week advances exactly six hours after last kickoff',()=>{const c=setup();const games=[{seasonType:2,weekNumber:1,dateTime:'2026-09-10T00:00:00Z'},{seasonType:2,weekNumber:2,dateTime:'2026-09-17T00:00:00Z'}];const weeks=c.ggNflScheduleWeeks(games);assert.equal(c.ggNflCurrentWeek(weeks,games,Date.parse('2026-09-10T05:59:59Z')).key,'2:1');assert.equal(c.ggNflCurrentWeek(weeks,games,Date.parse('2026-09-10T06:00:00Z')).key,'2:2');assert.equal(c.ggNflCurrentWeek(c.ggNflScheduleWeeks([]),[],0),null)});
+test('schedule registry dispatches weekly and daily modes',()=>{const c=setup();assert.equal(c.ggScheduleGroups('nfl',[]).length,26);assert.equal(c.ggScheduleGroups('mls',[{dateTime:new Date(2026,8,10,12)}])[0].key,'2026-09-10');assert.throws(()=>c.ggScheduleGroups('bad',[]),/Unknown league/)});
+test('NFL unknown kickoff never invents watch providers',()=>{const c=setup();assert.equal(c.getProviderKeysForGame({kickoffTbd:true,network:'TBD'}).length,0)});
+test('NFL radio information-only station prioritizes subscription audio',()=>{const c=setup();c.teamShortName=(name)=>name;c.radioStationForAbbr=abbr=>abbr==='JAX'?{short:'Station',name:'Station',type:'radio-info'}:null;assert.equal(c.radioOptionsForGame({homeAbbr:'JAX',awayAbbr:'NE'})[0].label,'NFL+ Audio')});
