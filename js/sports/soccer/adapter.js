@@ -1,6 +1,6 @@
 // Soccer scoreboard adapter. No NFL state or provider defaults.
 function ggSoccerNormalize(raw,leagueId){
-  if(GG_LEAGUES[leagueId]?.sport!=="soccer")throw Error("Not a soccer league");
+  if(!["soccer","basketball"].includes(GG_LEAGUES[leagueId]?.sport))throw Error("Not a soccer league");
   const seen=new Set(),games=[];
   for(const e of raw?.events||[]){
     const c=e.competitions?.[0],h=c?.competitors?.find(t=>t.homeAway==="home"),a=c?.competitors?.find(t=>t.homeAway==="away");
@@ -9,7 +9,7 @@ function ggSoccerNormalize(raw,leagueId){
     const list=x=>Array.isArray(x)?x:[];
     const names=[...list(c.broadcasts).flatMap(b=>list(b?.names).length?b.names:[b?.name||b?.shortName]),...list(c.geoBroadcasts).filter(b=>String(b?.region||b?.market?.type||"").toLowerCase()==="us").map(b=>b.media?.shortName)].filter(x=>typeof x==="string"&&x.trim());
     const broadcasts=[...new Set(names)];
-    const g=ggNormalizeGame({id:String(e.id),dateTime:e.date||c.date,homeTeam:h.team.displayName||h.team.name,awayTeam:a.team.displayName||a.team.name,homeAbbr:h.team.abbreviation,awayAbbr:a.team.abbreviation,homeLogo:h.team.logo||h.team.logos?.[0]?.href||"",awayLogo:a.team.logo||a.team.logos?.[0]?.href||"",homeScore:h.score,awayScore:a.score,homePenaltyScore:h.shootoutScore,awayPenaltyScore:a.shootoutScore,status:type.state||"pre",statusName:type.name||"",statusDetail:type.shortDetail||type.description||"",clock:status.displayClock||"",network:broadcasts[0]||"TBD",broadcasts,venue:c.venue?.fullName||""},leagueId);
+    const g=ggNormalizeGame({id:String(e.id),dateTime:e.date||c.date,homeTeam:leagueId==="nba"?(h.team.shortDisplayName||h.team.name):h.team.displayName||h.team.name,awayTeam:leagueId==="nba"?(a.team.shortDisplayName||a.team.name):a.team.displayName||a.team.name,homeAbbr:h.team.abbreviation,awayAbbr:a.team.abbreviation,homeLogo:h.team.logo||h.team.logos?.[0]?.href||"",awayLogo:a.team.logo||a.team.logos?.[0]?.href||"",homeScore:h.score,awayScore:a.score,homePenaltyScore:h.shootoutScore,awayPenaltyScore:a.shootoutScore,status:type.state||"pre",statusName:type.name||"",statusDetail:type.shortDetail||type.description||"",clock:status.displayClock||"",network:broadcasts[0]||"TBD",broadcasts,venue:c.venue?.fullName||""},leagueId);
     if(g){seen.add(g.id);games.push(g)}
   }
   return games.sort((a,b)=>new Date(a.dateTime)-new Date(b.dateTime));
@@ -20,7 +20,7 @@ function ggSoccerDateRange(day){
   return [from,to].map(x=>ggLocalDateKey(x).replace(/-/g,"")).join("-");
 }
 async function ggSoccerFetch(leagueId,day,request=fetchJson){
-  const league=GG_LEAGUES[leagueId];if(league?.sport!=="soccer")throw Error("Not a soccer league");
+  const league=GG_LEAGUES[leagueId];if(!["soccer","basketball"].includes(league?.sport))throw Error("Not a soccer league");
   const range=ggSoccerDateRange(day),query="?dates="+range+"&limit=200";
   const urls=[league.scoreboard+query,league.scoreboard.replace("site.api.espn.com","site.web.api.espn.com")+query,league.scoreboard+"?dates="+day.replace(/-/g,"")];
   const errors=[];
@@ -34,7 +34,10 @@ function ggSoccerProviders(game){
   const names=game.broadcasts||[],out=new Map();
   for(const name of names){
     let p=null;
-    if(/apple tv|mls season pass/i.test(name))p=["Apple TV","https://tv.apple.com/"];
+    if(/amazon|prime video/i.test(name))p=["Prime Video","https://www.primevideo.com/"];
+    else if(/league pass/i.test(name))p=["League Pass","https://www.nba.com/watch/league-pass"];
+    else if(/^abc$|^espn(?:2|3)?$/i.test(name))p=[name,"https://www.espn.com/watch/"];
+    else if(/apple tv|mls season pass/i.test(name))p=["Apple TV","https://tv.apple.com/"];
     else if(/peacock/i.test(name))p=["Peacock","https://www.peacocktv.com/"];
     else if(/usa net|^usa$|\bnbc\b|universo|telemundo/i.test(name))p=[name,"https://www.nbc.com/live"];
     else if(/fox|\bfs[12]\b/i.test(name))p=[name,"https://www.foxsports.com/live"];
@@ -42,3 +45,6 @@ function ggSoccerProviders(game){
     if(p)out.set(p[0],{label:p[0],url:p[1]});
   }return [...out.values()];
 }
+
+// Racing uses session rows, not head-to-head game normalization.
+async function ggF1Fetch(day,request){const year=day.slice(0,4),raw=await request("https://api.jolpi.ca/ergast/f1/"+year+"/?limit=100");const races=raw?.MRData?.RaceTable?.Races;if(!Array.isArray(races))throw Error("Invalid F1 calendar");const rows=[];for(const r of races){for(const [label,s] of [["Practice 1",r.FirstPractice],["Practice 2",r.SecondPractice],["Practice 3",r.ThirdPractice],["Sprint Qualifying",r.SprintQualifying||r.SprintShootout],["Sprint",r.Sprint],["Qualifying",r.Qualifying],["Race",r]]){if(!s?.date||!s.time)continue;const dateTime=s.date+"T"+s.time;if(ggLocalDateKey(dateTime)!==day)continue;rows.push({id:year+"-"+r.round+"-"+label,dateTime,status:"pre",raceName:r.raceName,session:label,venue:r.Circuit?.circuitName||"",raceRound:r.round});}}return rows;}
