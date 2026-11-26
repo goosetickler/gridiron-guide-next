@@ -1886,27 +1886,6 @@ let directvZip=localStorage.getItem(DIRECTV_ZIP_KEY)||"";
     }
     // Home call first, away call second; NFL+ always offers the two audio calls
     // when a station's own stream doesn't carry the game in the listener's market.
-    function radioOptionsForGame(game){
-      const teams=[
-        {abbr:game.homeAbbr,team:teamShortName(game.homeTeam,game.homeAbbr),side:'Home'},
-        {abbr:game.awayAbbr,team:teamShortName(game.awayTeam,game.awayAbbr),side:'Away'}
-      ];
-      const options=teams.map(t=>{
-        const s=radioStationForAbbr(t.abbr);
-        return s?{label:s.short,name:s.name,url:s.url,team:t.team,side:t.side,
-          type:s.type,caption:s.type==='radio-info'?'AM/FM info ↗':'Station ↗',note:s.note||''}:null;
-      }).filter(Boolean);
-      const nflAudio={label:'NFL+ Audio',name:'NFL+ · Home & Away Audio',url:'https://www.nfl.com/plus',
-        team:'NFL+',side:'Any market',type:'subscription',caption:'Subscription ↗'};
-      // Don't send a Jaguars listener to a station player that explicitly mutes games.
-      // Put NFL+ first when the home station is information-only.
-      if(options[0]?.type==='radio-info')options.unshift(nflAudio);
-      else options.push(nflAudio);
-      return options;
-    }
-    // Compact on-card radio identifier; the expanded list retains full station
-    // names and the original links. Never label NFL+ as SiriusXM unless the
-    // selected destination actually points to SiriusXM.
     function compactRadioLabel(label){
       const labels={
         'Arizona 98.7':'98.7',
@@ -3180,46 +3159,6 @@ let directvZip=localStorage.getItem(DIRECTV_ZIP_KEY)||"";
       return {eligible:false,type:"UNVERIFIED",reason:"Local coverage is not confirmed yet; Sunday Ticket is not shown until the game is verified out of market."};
     }
 
-    function getProviderKeysForGame(game){
-      // Do not manufacture a watch destination for late-season games whose
-      // kickoff time and distribution have not been assigned yet.
-      if(game?.kickoffTbd && (!game.network || game.network==="TBD"))return [];
-      const {networkClass,providers}=baseProvidersForNetwork(game);
-      let keys=[...providers];
-
-      // Streaming exclusives / special eligibility are independent additions.
-      if(isParamountPlusGame(game) && networkClass!=="CBS") keys.push("paramount");
-      if(isPeacockGame(game) && !keys.includes("peacock")) keys.push("peacock");
-      if(isNetflixGame(game) && !keys.includes("netflix")) keys.push("netflix");
-
-      // Provider-owned schedule validation. These caches refresh weekly and
-      // exist only to validate stream availability, not scores or game state.
-      if(providerValidationAllows(game,"peacock")) keys.push("peacock");
-      if(providerValidationAllows(game,"paramount")) keys.push("paramount");
-            if(providerValidationAllows(game,"prime")) keys.push("prime");
-
-      // DIRECTV is enrichment-only and requires separate verification.
-
-      // NFL+ is limited to live local/primetime regular-season/postseason games
-      // on mobile/tablet plus NFL Network. Do not expose it as a live option for
-      // ordinary Sunday-afternoon CBS/FOX games.
-      if(!keys.includes("nflplus") && ["NBC","ESPN","ABC","NFL_NETWORK","PRIME","NETFLIX","PEACOCK_EXCLUSIVE"].includes(networkClass)){
-        keys.push("nflplus");
-      }
-
-      // Unknown broadcasts retain a conservative fallback rather than manufacturing
-      // a full distribution set from a loose substring.
-      if(!keys.length){
-        const fallback=providerFromNetwork(game.network);
-        if(fallback && fallback!=="nflplus") keys.push(fallback);
-      }
-
-      if(getDirectvEligibility(game).eligible) keys.push("directv");
-      if(getSundayTicketEligibility(game).eligible) keys.push("sundayticket");
-
-      const seen=new Set();
-      return keys.filter(key=>PROVIDER_LINKS[key]&&!seen.has(key)&&seen.add(key));
-    }
     function renderProviderIcons(providerKeys, primaryKey, game){
       if(!providerKeys.length) return "";
       return `<div class="provider-icons" aria-label="Available streaming options">${providerKeys.map(key => {
@@ -3492,38 +3431,12 @@ let directvZip=localStorage.getItem(DIRECTV_ZIP_KEY)||"";
       return `${url}${joiner}utm_source=nfl_game_launcher&game=${encodeURIComponent(gameId)}`;
     }
 
-    function scheduleWeekKey(g){
-      const type=Number(g.seasonType||0),week=Number(g.weekNumber||0);
-      if(type&&week)return `${type}:${week}`;
-      const d=new Date(g.dateTime),rs=new Date("2026-09-06");
-      if(d<rs)return `1:${Math.max(1,Math.min(3,Math.floor((d-new Date("2026-08-01"))/604800000)+1))}`;
-      return `2:${Math.max(1,Math.min(18,Math.floor((d-rs)/604800000)+1))}`;
-    }
+    function scheduleWeekKey(g){return ggNflWeekKey(g);}
     function buildScheduleWeeks(){
-      const groups=new Map();
-      allGames.forEach(g=>{const k=scheduleWeekKey(g);if(k){if(!groups.has(k))groups.set(k,[]);groups.get(k).push(g)}});
-      [1,2,3].forEach(w=>groups.has(`1:${w}`)||groups.set(`1:${w}`,[]));
-      for(let w=1;w<=18;w++)groups.has(`2:${w}`)||groups.set(`2:${w}`,[]);
-      [1,2,3,4,5].forEach(w=>groups.has(`3:${w}`)||groups.set(`3:${w}`,[]));
-      scheduleWeeks=[...groups].sort((a,b)=>{const A=a[0].split(":").map(Number),B=b[0].split(":").map(Number);return A[0]*100+A[1]-B[0]*100-B[1]}).map(([key,games])=>{const [type,week]=key.split(":").map(Number),ds=games.map(g=>new Date(g.dateTime));return{key,type,week,hasGames:!!games.length,min:ds.length?new Date(Math.min(...ds)):null,max:ds.length?new Date(Math.max(...ds)):null}});
+      scheduleWeeks=ggScheduleGroups("nfl",allGames);
       if(!selectedScheduleWeek||!scheduleWeeks.some(w=>w.key===selectedScheduleWeek))selectedScheduleWeek=(findCurrentScheduleWeek()||scheduleWeeks[0])?.key;
     }
-    function findCurrentScheduleWeek(now=Date.now()){
-      const populated=scheduleWeeks.filter(w=>w.hasGames);
-      if(!populated.length)return null;
-
-      // A week remains current through the expected end of its last game. After
-      // that window, advance to the next populated week—even before its first
-      // kickoff. This avoids Thursday launches incorrectly reopening the prior
-      // week because its Monday-night game happened less than four days ago.
-      const GAME_COMPLETION_WINDOW_MS=6*60*60*1000;
-      return populated.find(w=>{
-        const lastKickoff=allGames
-          .filter(g=>scheduleWeekKey(g)===w.key)
-          .reduce((latest,g)=>Math.max(latest,new Date(g.dateTime).getTime()||0),0);
-        return lastKickoff+GAME_COMPLETION_WINDOW_MS>now;
-      })||populated[populated.length-1];
-    }
+    function findCurrentScheduleWeek(now=Date.now()){return ggNflCurrentWeek(scheduleWeeks,allGames,now);}
     function postseasonInfo(w){if(w.type!==3)return null;return({1:{label:"WILD CARD",tag:"PLAYOFFS",cls:"postseason"},2:{label:"DIV RD",tag:"PLAYOFFS",cls:"postseason"},3:{label:"CONF CHAMP",tag:"FINAL FOUR",cls:"championship"},4:{label:"PRO BOWL",tag:"ALL-STAR",cls:"postseason"},5:{label:"SUPER BOWL",tag:"CHAMPIONSHIP",cls:"superbowl"}})[w.week]||null}
     function weekLabel(w){const p=postseasonInfo(w);return p?p.label:w.type===1?`PRE ${w.week}`:`WEEK ${w.week}`}
     function weekClass(w){return postseasonInfo(w)?.cls||""}
