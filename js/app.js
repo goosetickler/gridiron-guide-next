@@ -21,13 +21,13 @@
     //
     // Endpoint pattern used by this app:
     // https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?limit=1000&dates=YYYY&seasontype=TYPE&week=WEEK
-    const ESPN_BASE = "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard";
-    const ESPN_SUMMARY_BASE = "https://site.web.api.espn.com/apis/site/v2/sports/football/nfl/summary";
+    const ESPN_BASE = GG_ACTIVE_LEAGUE.scoreboard;
+    const ESPN_SUMMARY_BASE = GG_ACTIVE_LEAGUE.summary;
     const MAX_GAMES_TO_SHOW = 18;
     const PROVIDER_PREF_KEY = "gridironGuide.enabledProviders.settings.v5";
     const APP_DATA_VERSION = 21;
     const APP_DATA_VERSION_KEY = "gridironGuide.appDataVersion";
-    const SEASON_CACHE_KEY="gridironGuide.seasonSchedule.v1";
+    const SEASON_CACHE_KEY=ggLeagueCacheKey(GG_ACTIVE_LEAGUE.id,"gridironGuide.seasonSchedule.v1");
     const SEASON_CACHE_TTL_MS=12*60*60*1000;
     const PREGAME_REFRESH_MS=5*60*1000;
     const LIVE_REFRESH_MS=30*1000;
@@ -51,7 +51,7 @@
       ["NYJ","New York Jets"],["PHI","Philadelphia Eagles"],["PIT","Pittsburgh Steelers"],["SEA","Seattle Seahawks"],
       ["SF","San Francisco 49ers"],["TB","Tampa Bay Buccaneers"],["TEN","Tennessee Titans"],["WSH","Washington Commanders"]
     ].map(([id,name])=>Object.freeze({league:"NFL",id,name})));
-    const WEEKLY_COVERAGE_CACHE_KEY="gridironGuide.weeklyCoverage.v2";
+    const WEEKLY_COVERAGE_CACHE_KEY=ggLeagueCacheKey(GG_ACTIVE_LEAGUE.id,"gridironGuide.weeklyCoverage.v2");
     const WEEKLY_COVERAGE_CACHE_TTL_MS=5*60*1000;
     const WEEKLY_COVERAGE_FEED_URL="https://goosetickler.github.io/streamline-/local-coverage-2026.json";
     // v4/v6 invalidate early-game snapshots incorrectly retained after a game ended.
@@ -964,7 +964,7 @@
     }
 
     const STREAMING_RIGHTS_SCHEMA=1;
-    const STREAMING_RIGHTS_CACHE_KEY="gridironGuide.streamingRights.v1";
+    const STREAMING_RIGHTS_CACHE_KEY=ggLeagueCacheKey(GG_ACTIVE_LEAGUE.id,"gridironGuide.streamingRights.v1");
     const STREAMING_RIGHTS_2026={
       prime:[
         ["2026-08-27","NE","CLE"],["2026-09-17","DET","BUF"],["2026-09-24","ATL","GB"],["2026-10-01","PIT","CLE"],["2026-10-08","TB","DAL"],["2026-10-15","SEA","DEN"],["2026-10-22","NE","CHI"],["2026-10-29","CAR","GB"],["2026-11-05","JAX","BAL"],["2026-11-12","WSH","NYG"],["2026-11-19","IND","HOU"],["2026-11-27","DEN","PIT"],["2026-12-03","KC","LAR"],["2026-12-10","MIN","NE"],["2026-12-17","SF","LAC"],["2026-12-24","HOU","PHI"],["2026-12-31","BAL","CIN"]
@@ -1119,18 +1119,6 @@ let directvZip=localStorage.getItem(DIRECTV_ZIP_KEY)||"";
     // Builds a broad list of ESPN URLs for the current NFL season.
     // First URL asks ESPN for the whole season. If that result is sparse,
     // fetchEspnSchedule() fans out by season type and week below.
-    function buildEspnUrls(){
-      const season = getSeasonYear();
-      const urls = [`${ESPN_BASE}?limit=1000&dates=${season}`];
-      for(const type of [1,2,3]){
-        const maxWeek = type === 2 ? 18 : 5;
-        for(let week = 1; week <= maxWeek; week++){
-          urls.push(`${ESPN_BASE}?limit=1000&dates=${season}&seasontype=${type}&week=${week}`);
-        }
-      }
-      return urls;
-    }
-
     // Pulls ESPN data and normalizes it into this app's simple game model.
     // Starts with the season-level request, then falls back to week-by-week
     // requests if not enough playable games are returned.
@@ -1297,7 +1285,7 @@ let directvZip=localStorage.getItem(DIRECTV_ZIP_KEY)||"";
       const currentGames=allGames.filter(g=>scheduleWeekKey(g)===current.key);
       if(currentGames.length && currentGames.every(isFinalGame))return [];
 
-      const url=`https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?limit=100&dates=${getSeasonYear()}&seasontype=${current.type}&week=${current.week}`;
+      const url=`${ESPN_BASE}?limit=100&dates=${getSeasonYear()}&seasontype=${current.type}&week=${current.week}`;
       try{
         const raw=await fetchJson(url);
         const updates=normalizeEspn(raw,new Set());
@@ -1359,78 +1347,6 @@ let directvZip=localStorage.getItem(DIRECTV_ZIP_KEY)||"";
 
     // Converts ESPN's nested event structure into the flat fields used by
     // renderGameCard(). Also de-dupes games across season and week requests.
-    function normalizeEspn(raw, seen){
-      const events = Array.isArray(raw?.events) ? raw.events : [];
-      return events.map(event => {
-        const competition = event.competitions?.[0] || {};
-        const competitors = competition.competitors || [];
-        const home = competitors.find(c => c.homeAway === "home") || {};
-        const away = competitors.find(c => c.homeAway === "away") || {};
-        const broadcastEntries = Array.isArray(competition.broadcasts) ? competition.broadcasts : [];
-        const broadcasts = broadcastEntries.flatMap(entry => {
-          const names = Array.isArray(entry?.names) && entry.names.length ? entry.names : [entry?.shortName || entry?.name || ""];
-          return names.filter(Boolean).map(name => ({name:String(name),shortName:String(entry?.shortName||""),market:String(entry?.market||entry?.type?.name||""),type:String(entry?.type?.name||"")}));
-        });
-        const broadcast = broadcasts[0]?.name || "TBD";
-        const id = event.id || event.uid || `${away.team?.abbreviation}-${home.team?.abbreviation}-${event.date}`;
-        if(seen.has(id)) return null;
-        seen.add(id);
-        return {
-          id,
-          dateTime: event.date || competition.date,
-          homeTeam: home.team?.displayName || home.team?.name || "Home Team",
-          awayTeam: away.team?.displayName || away.team?.name || "Away Team",
-          homeAbbr: home.team?.abbreviation || "HOME",
-          awayAbbr: away.team?.abbreviation || "AWAY",
-          homeLogo: getLogo(home.team),
-          awayLogo: getLogo(away.team),
-          homeScore: home.score,
-          awayScore: away.score,
-          homeRecord:home.records?.[0]?.summary || "",
-          awayRecord: away.records?.[0]?.summary || "",
-          network: broadcast,
-          broadcasts,
-          sourceLinks: normalizeEspnSourceLinks(event,competition),
-          status: (event.status?.type?.state || event.status?.type?.name || "scheduled").toLowerCase(),
-          statusDetail: event.status?.type?.shortDetail || event.status?.type?.detail || "",
-          period: event.status?.period || event.status?.type?.period || "",
-          clock: event.status?.displayClock || event.status?.clock || "",
-          possessionAbbr: getPossessionAbbr(competition, home, away),
-          homeTimeouts: getTimeouts(competition, home, "home"),
-          awayTimeouts: getTimeouts(competition, away, "away"),
-          venue: competition.venue?.fullName || "",
-          seasonYear:Number(event.season?.year||raw?.season?.year||getSeasonYear()),
-          seasonType:Number(event.season?.type||raw?.season?.type||0),
-          weekNumber:Number(event.week?.number||raw?.week?.number||0)
-        };
-      }).filter(g => g && g.dateTime && !Number.isNaN(new Date(g.dateTime).getTime()));
-    }
-
-    function getLogo(team){
-      return team?.logos?.[0]?.href || team?.logo || team?.logos?.find?.(l => l.href)?.href || "";
-    }
-    function getPossessionAbbr(competition, home, away){
-      const situation = competition?.situation || {};
-      const raw = situation.possession || situation.possessionText || situation.team?.abbreviation || situation.possessionTeam?.abbreviation || situation.lastPlay?.team?.abbreviation || "";
-      if(!raw) return "";
-      const value = String(raw).toUpperCase();
-      if(value === String(home?.team?.id || "").toUpperCase()) return home?.team?.abbreviation || "";
-      if(value === String(away?.team?.id || "").toUpperCase()) return away?.team?.abbreviation || "";
-      if(value === String(home?.team?.abbreviation || "").toUpperCase()) return home?.team?.abbreviation || "";
-      if(value === String(away?.team?.abbreviation || "").toUpperCase()) return away?.team?.abbreviation || "";
-      return value.length <= 4 ? value : "";
-    }
-    function getTimeouts(competition, competitor, side){
-      const situation = competition?.situation || {};
-      const direct = competitor?.timeouts ?? competitor?.timeout ?? competitor?.timeoutsRemaining;
-      const bySide = side === "home"
-        ? (situation.homeTimeoutsRemaining ?? situation.homeTimeouts)
-        : (situation.awayTimeoutsRemaining ?? situation.awayTimeouts);
-      const value = direct ?? bySide;
-      const parsed = Number(value);
-      return Number.isFinite(parsed) ? Math.max(0, Math.min(3, parsed)) : null;
-    }
-
     function readWeeklyCoverageCache(){
       try{const payload=JSON.parse(localStorage.getItem(WEEKLY_COVERAGE_CACHE_KEY)||"null");return payload&&typeof payload==="object"?payload:null;}catch(err){return null;}
     }
@@ -2749,7 +2665,7 @@ let directvZip=localStorage.getItem(DIRECTV_ZIP_KEY)||"";
       if(!teamId)return [];
       const key=String(teamId);
       if(!fantasyTeamRosterRequests.has(key)){
-        const request=fetchJson(`https://site.api.espn.com/apis/site/v2/sports/football/nfl/teams/${encodeURIComponent(key)}/roster`)
+        const request=fetchJson(`${GG_ACTIVE_LEAGUE.teams}/${encodeURIComponent(key)}/roster`)
           .then(fantasyRosterEntries).catch(()=>[]);
         fantasyTeamRosterRequests.set(key,request);
       }
