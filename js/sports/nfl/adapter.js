@@ -84,3 +84,40 @@
       return Number.isFinite(parsed) ? Math.max(0, Math.min(3, parsed)) : null;
     }
 
+
+    function normalizeEspnSourceLinks(event, competition){
+      const rows=[...(Array.isArray(event?.links)?event.links:[]),...(Array.isArray(competition?.links)?competition.links:[])];
+      const seen=new Set();
+      return rows.map(link=>{
+        const href=String(link?.href||link?.url||"").trim();
+        if(!href||seen.has(href))return null;
+        seen.add(href);
+        const rel=Array.isArray(link?.rel)?link.rel.map(String):[];
+        return {href,text:String(link?.text||link?.shortText||""),rel};
+      }).filter(Boolean);
+    }
+
+
+    async function fetchEspnSchedule(){
+      const urls = buildEspnUrls();
+      const seen = new Set();
+      let games = [];
+
+      const first = await fetchJson(urls[0]);
+      games = normalizeEspn(first, seen);
+
+      // Only fan out week-by-week when the season-level response itself is truly
+      // sparse. Using the active UI filter here can accidentally trigger ~28 requests
+      // (for example when the selected week is complete or RESULTS is active).
+      if(games.length < 40){
+        const weekResults = await Promise.allSettled(urls.slice(1).map(fetchJson));
+        for(const result of weekResults){
+          if(result.status === "fulfilled") games.push(...normalizeEspn(result.value, seen));
+        }
+      }
+      const currentPreseasonStart = new Date(`${getSeasonYear()}-08-01T00:00:00`);
+      return games
+        .filter(game => new Date(game.dateTime) >= currentPreseasonStart)
+        .sort((a,b) => new Date(a.dateTime) - new Date(b.dateTime));
+    }
+
