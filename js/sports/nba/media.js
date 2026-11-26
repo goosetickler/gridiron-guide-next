@@ -39,3 +39,30 @@ function ggNbaProviders(game){
  // Prefer reported TV feeds over ambiguous streaming distribution aliases.
  return providers.filter(p=>!(p.network==="Prime Video" && hasLeaguePass && /^(amazon|prime)$/i.test(p.raw.trim()))).map(p=>hasRegional && (p.network==="Prime Video"||p.network==="Peacock")?{...p,rank:5}:p).sort((a,b)=>a.rank-b.rank);
 }
+
+let ggNbaOfficialCache=null,ggNbaOfficialPending=null;
+async function ggNbaOfficialGames(request){
+ if(ggNbaOfficialCache&&Date.now()-ggNbaOfficialCache.time<3600000)return ggNbaOfficialCache.rows;
+ if(ggNbaOfficialPending)return ggNbaOfficialPending;
+ ggNbaOfficialPending=(async()=>{try{
+ const raw=await request("https://cdn.nba.com/static/json/staticData/scheduleLeagueV2.json");
+ const days=raw?.leagueSchedule?.gameDates;
+ if(!Array.isArray(days))throw Error("Invalid NBA schedule");
+ const rows=days.flatMap(d=>d.games||[]);ggNbaOfficialCache={time:Date.now(),rows};return rows;
+ }catch(e){console.warn("NBA official schedule unavailable",e);ggNbaOfficialCache={time:Date.now()-3300000,rows:[]};return []}finally{ggNbaOfficialPending=null}})();
+ return ggNbaOfficialPending;
+}
+function ggNbaMergeOfficial(games,rows){
+ const code=x=>({GS:"GSW",NY:"NYK",NO:"NOP",SA:"SAS",UTAH:"UTA",WSH:"WAS",BKN:"BKN",BRK:"BKN"}[String(x).toUpperCase()]||String(x).toUpperCase());
+ for(const g of games){
+ const t=Date.parse(g.dateTime);
+ const matches=rows.filter(r=>code(r.homeTeam?.teamTricode)===code(g.homeAbbr)&&code(r.awayTeam?.teamTricode)===code(g.awayAbbr)&&Math.abs(Date.parse(r.gameDateTimeUTC)-t)<6*3600000);
+ if(matches.length!==1)continue;
+ const b=matches[0].broadcasters||{},names=[];
+ for(const key of ["nationalBroadcasters","nationalOttBroadcasters","homeTvBroadcasters","awayTvBroadcasters","homeOttBroadcasters","awayOttBroadcasters"]){
+ for(const x of Array.isArray(b[key])?b[key]:[]){for(const n of [x.broadcasterDisplay,x.broadcasterAbbreviation])if(typeof n==="string"&&n.trim())names.push(n.trim());}
+ }
+ if(names.length){g.broadcasts=[...new Set([...names,...(g.broadcasts||[])])];g.network=ggNbaProviders(g)[0]?.network||g.network;}
+ }
+ return games;
+}
