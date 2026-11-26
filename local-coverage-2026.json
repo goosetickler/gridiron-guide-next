@@ -1,0 +1,1813 @@
+{
+  "version": 1,
+  "season": 2026,
+  "updatedAt": "2026-11-23T22:47:00Z",
+  "source": "Week 12 (Nov 29, 2026) partial U.S. market coverage (26 markets) from EntitledSports and Sports Maps (checked Nov 23); national windows cross-checked with NFL; coverage subject to late changes",
+  "weeks": {
+    "8": {
+      "markets": {
+        "San Diego, CA": {
+          "CBS:EARLY": {
+            "game": "BAL@BUF",
+            "station": "KFMB",
+            "source": "Week 8 San Diego DMA prototype"
+          },
+          "CBS:LATE": {
+            "game": "KC@DEN",
+            "station": "KFMB",
+            "source": "Week 8 San Diego DMA prototype"
+          },
+          "FOX:LATE": {
+            "game": "LAC@LAR",
+            "station": "KSWB",
+            "source": "Week 8 San Diego DMA prototype"
+          }
+        }
+      }
+    },
+    "9": {
+      "markets": {
+        "Atlanta": {
+          "CBS:EARLY": {
+            "game": "DEN@CAR",
+            "station": "WGCL-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:EARLY": {
+            "game": "DAL@IND",
+            "station": "WAGA-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "GB@NE",
+            "station": "WAGA-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Boston (Manchester)": {
+          "CBS:EARLY": {
+            "game": "NYJ@KC",
+            "station": "WBZ-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:EARLY": {
+            "game": "NYG@PHI",
+            "station": "WFXT",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "GB@NE",
+            "station": "WFXT",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Charlotte": {
+          "CBS:EARLY": {
+            "game": "DEN@CAR",
+            "station": "WBTV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:EARLY": {
+            "game": "DAL@IND",
+            "station": "WJZY",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "GB@NE",
+            "station": "WJZY",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Chicago": {
+          "FOX:EARLY": {
+            "game": "DAL@IND",
+            "station": "WFLD",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "GB@NE",
+            "station": "WFLD",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Cleveland–Akron (Canton)": {
+          "CBS:EARLY": {
+            "game": "CLE@NO",
+            "station": "WOIO",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:EARLY": {
+            "game": "DAL@IND",
+            "station": "WJW",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "GB@NE",
+            "station": "WJW",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Dallas–Fort Worth": {
+          "CBS:EARLY": {
+            "game": "NYJ@KC",
+            "station": "KTVT",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:EARLY": {
+            "game": "DAL@IND",
+            "station": "KDFW",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "GB@NE",
+            "station": "KDFW",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Denver": {
+          "CBS:EARLY": {
+            "game": "DEN@CAR",
+            "station": "KCNC-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:EARLY": {
+            "game": "DAL@IND",
+            "station": "KFCT",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "GB@NE",
+            "station": "KFCT",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Detroit": {
+          "FOX:EARLY": {
+            "game": "DAL@IND",
+            "station": "WJBK",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "GB@NE",
+            "station": "WJBK",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Houston": {
+          "CBS:LATE": {
+            "game": "HOU@LAC",
+            "station": "KHOU",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:EARLY": {
+            "game": "DAL@IND",
+            "station": "KRIV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "GB@NE",
+            "station": "KRIV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Indianapolis": {
+          "CBS:LATE": {
+            "game": "HOU@LAC",
+            "station": "WTTV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:EARLY": {
+            "game": "DAL@IND",
+            "station": "WXIN",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "GB@NE",
+            "station": "WXIN",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Los Angeles": {
+          "CBS:LATE": {
+            "game": "HOU@LAC",
+            "station": "KCBS-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:EARLY": {
+            "game": "LAR@WSH",
+            "station": "KTTV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "LV@SF",
+            "station": "KTTV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Miami–Fort Lauderdale": {
+          "FOX:EARLY": {
+            "game": "NYG@PHI",
+            "station": "WSVN",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "GB@NE",
+            "station": "WSVN",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Minneapolis–St. Paul": {
+          "FOX:EARLY": {
+            "game": "DAL@IND",
+            "station": "WFTC",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "GB@NE",
+            "station": "WFTC",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "New York": {
+          "CBS:EARLY": {
+            "game": "NYJ@KC",
+            "station": "WCBS-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:EARLY": {
+            "game": "NYG@PHI",
+            "station": "WNYW",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "GB@NE",
+            "station": "WNYW",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Orlando–Daytona Beach–Melbourne": {
+          "CBS:EARLY": {
+            "game": "NYJ@KC",
+            "station": "WKMG-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:EARLY": {
+            "game": "DAL@IND",
+            "station": "WOFL",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "GB@NE",
+            "station": "WOFL",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Philadelphia": {
+          "CBS:LATE": {
+            "game": "HOU@LAC",
+            "station": "KYW-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:EARLY": {
+            "game": "NYG@PHI",
+            "station": "WTXF-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "GB@NE",
+            "station": "WTXF-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Phoenix (Prescott)": {
+          "CBS:EARLY": {
+            "game": "NYJ@KC",
+            "station": "KPHO-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:EARLY": {
+            "game": "DAL@IND",
+            "station": "KSAZ-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "ARI@SEA",
+            "station": "KSAZ-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Portland, OR": {
+          "CBS:EARLY": {
+            "game": "NYJ@KC",
+            "station": "KOIN",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:EARLY": {
+            "game": "DAL@IND",
+            "station": "KPTV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "ARI@SEA",
+            "station": "KPTV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Raleigh–Durham (Fayetteville)": {
+          "CBS:EARLY": {
+            "game": "DEN@CAR",
+            "station": "WNCN",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:EARLY": {
+            "game": "DAL@IND",
+            "station": "WRAZ",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "GB@NE",
+            "station": "WRAZ",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Sacramento–Stockton–Modesto": {
+          "CBS:EARLY": {
+            "game": "NYJ@KC",
+            "station": "KOVR",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:EARLY": {
+            "game": "LAR@WSH",
+            "station": "KTXL",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "LV@SF",
+            "station": "KTXL",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "San Francisco–Oakland–San Jose": {
+          "CBS:EARLY": {
+            "game": "NYJ@KC",
+            "station": "KPIX-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:EARLY": {
+            "game": "LAR@WSH",
+            "station": "KTVU",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "LV@SF",
+            "station": "KTVU",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Seattle–Tacoma": {
+          "CBS:EARLY": {
+            "game": "NYJ@KC",
+            "station": "KIRO-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:EARLY": {
+            "game": "DAL@IND",
+            "station": "KCPQ",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "ARI@SEA",
+            "station": "KCPQ",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "St. Louis": {
+          "CBS:EARLY": {
+            "game": "NYJ@KC",
+            "station": "KMOV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:EARLY": {
+            "game": "DAL@IND",
+            "station": "KTVI",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "GB@NE",
+            "station": "KTVI",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Tampa–St. Petersburg (Sarasota)": {
+          "CBS:EARLY": {
+            "game": "DEN@CAR",
+            "station": "WTSP",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:EARLY": {
+            "game": "DAL@IND",
+            "station": "WTVT",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "GB@NE",
+            "station": "WTVT",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Washington (Hagerstown)": {
+          "CBS:LATE": {
+            "game": "HOU@LAC",
+            "station": "WUSA",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:EARLY": {
+            "game": "LAR@WSH",
+            "station": "WTTG",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "GB@NE",
+            "station": "WTTG",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "San Diego, CA": {
+          "FOX:EARLY": {
+            "game": "LAR@WSH",
+            "station": "KSWB",
+            "source": "https://thesportsmaps.com/tv-markets/san-diego.html"
+          },
+          "CBS:LATE": {
+            "game": "HOU@LAC",
+            "station": "KFMB",
+            "source": "https://thesportsmaps.com/tv-markets/san-diego.html"
+          },
+          "FOX:LATE": {
+            "game": "LV@SF",
+            "station": "KSWB",
+            "source": "https://thesportsmaps.com/tv-markets/san-diego.html"
+          }
+        }
+      }
+    },
+    "10": {
+      "markets": {
+        "Atlanta": {
+          "CBS:EARLY": {
+            "game": "KC@ATL",
+            "station": "WGCL-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:EARLY": {
+            "game": "MIN@GB",
+            "station": "WAGA-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "SF@DAL",
+            "station": "WAGA-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Boston (Manchester)": {
+          "CBS:EARLY": {
+            "game": "BUF@NYJ",
+            "station": "WBZ-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:EARLY": {
+            "game": "MIN@GB",
+            "station": "WFXT",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "SF@DAL",
+            "station": "WFXT",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Charlotte": {
+          "CBS:EARLY": {
+            "game": "KC@ATL",
+            "station": "WBTV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:EARLY": {
+            "game": "CAR@NO",
+            "station": "WJZY",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "SF@DAL",
+            "station": "WJZY",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Chicago": {
+          "CBS:EARLY": {
+            "game": "KC@ATL",
+            "station": "WBBM-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:EARLY": {
+            "game": "MIN@GB",
+            "station": "WFLD",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "SF@DAL",
+            "station": "WFLD",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Cleveland–Akron (Canton)": {
+          "CBS:LATE": {
+            "game": "SEA@LV",
+            "station": "WOIO",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:EARLY": {
+            "game": "HOU@CLE",
+            "station": "WJW",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "SF@DAL",
+            "station": "WJW",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Dallas–Fort Worth": {
+          "CBS:EARLY": {
+            "game": "KC@ATL",
+            "station": "KTVT",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:EARLY": {
+            "game": "MIN@GB",
+            "station": "KDFW",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "SF@DAL",
+            "station": "KDFW",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Denver": {
+          "CBS:EARLY": {
+            "game": "KC@ATL",
+            "station": "KCNC-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:EARLY": {
+            "game": "MIN@GB",
+            "station": "KFCT",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "SF@DAL",
+            "station": "KFCT",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Detroit": {
+          "CBS:EARLY": {
+            "game": "KC@ATL",
+            "station": "WWJ-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:EARLY": {
+            "game": "MIN@GB",
+            "station": "WJBK",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "SF@DAL",
+            "station": "WJBK",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Houston": {
+          "CBS:LATE": {
+            "game": "SEA@LV",
+            "station": "KHOU",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:EARLY": {
+            "game": "HOU@CLE",
+            "station": "KRIV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "SF@DAL",
+            "station": "KRIV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Indianapolis": {
+          "CBS:EARLY": {
+            "game": "MIA@IND",
+            "station": "WTTV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:EARLY": {
+            "game": "MIN@GB",
+            "station": "WXIN",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "SF@DAL",
+            "station": "WXIN",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Los Angeles": {
+          "CBS:LATE": {
+            "game": "LAR@ARI",
+            "station": "KCBS-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:EARLY": {
+            "game": "MIN@GB",
+            "station": "KTTV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "SF@DAL",
+            "station": "KTTV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Miami–Fort Lauderdale": {
+          "CBS:EARLY": {
+            "game": "MIA@IND",
+            "station": "WFOR-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:EARLY": {
+            "game": "MIN@GB",
+            "station": "WSVN",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "SF@DAL",
+            "station": "WSVN",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Minneapolis–St. Paul": {
+          "CBS:LATE": {
+            "game": "SEA@LV",
+            "station": "WCCO-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:EARLY": {
+            "game": "MIN@GB",
+            "station": "WFTC",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "SF@DAL",
+            "station": "WFTC",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "New York": {
+          "CBS:EARLY": {
+            "game": "BUF@NYJ",
+            "station": "WCBS-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:EARLY": {
+            "game": "MIN@GB",
+            "station": "WNYW",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "SF@DAL",
+            "station": "WNYW",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Orlando–Daytona Beach–Melbourne": {
+          "CBS:EARLY": {
+            "game": "KC@ATL",
+            "station": "WKMG-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:EARLY": {
+            "game": "MIN@GB",
+            "station": "WOFL",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "SF@DAL",
+            "station": "WOFL",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Philadelphia": {
+          "CBS:EARLY": {
+            "game": "KC@ATL",
+            "station": "KYW-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:EARLY": {
+            "game": "MIN@GB",
+            "station": "WTXF-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "SF@DAL",
+            "station": "WTXF-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Phoenix (Prescott)": {
+          "CBS:LATE": {
+            "game": "LAR@ARI",
+            "station": "KPHO-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:EARLY": {
+            "game": "MIN@GB",
+            "station": "KSAZ-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "SF@DAL",
+            "station": "KSAZ-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Portland, OR": {
+          "CBS:LATE": {
+            "game": "SEA@LV",
+            "station": "KOIN",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:EARLY": {
+            "game": "MIN@GB",
+            "station": "KPTV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "SF@DAL",
+            "station": "KPTV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Raleigh–Durham (Fayetteville)": {
+          "CBS:EARLY": {
+            "game": "KC@ATL",
+            "station": "WNCN",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:EARLY": {
+            "game": "CAR@NO",
+            "station": "WRAZ",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "SF@DAL",
+            "station": "WRAZ",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Sacramento–Stockton–Modesto": {
+          "CBS:EARLY": {
+            "game": "KC@ATL",
+            "station": "KOVR",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:EARLY": {
+            "game": "MIN@GB",
+            "station": "KTXL",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "SF@DAL",
+            "station": "KTXL",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "San Francisco–Oakland–San Jose": {
+          "CBS:EARLY": {
+            "game": "KC@ATL",
+            "station": "KPIX-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:EARLY": {
+            "game": "MIN@GB",
+            "station": "KTVU",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "SF@DAL",
+            "station": "KTVU",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Seattle–Tacoma": {
+          "CBS:LATE": {
+            "game": "SEA@LV",
+            "station": "KIRO-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:EARLY": {
+            "game": "MIN@GB",
+            "station": "KCPQ",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "SF@DAL",
+            "station": "KCPQ",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "St. Louis": {
+          "CBS:EARLY": {
+            "game": "KC@ATL",
+            "station": "KMOV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:EARLY": {
+            "game": "MIN@GB",
+            "station": "KTVI",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "SF@DAL",
+            "station": "KTVI",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Tampa–St. Petersburg (Sarasota)": {
+          "CBS:EARLY": {
+            "game": "KC@ATL",
+            "station": "WTSP",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:EARLY": {
+            "game": "MIN@GB",
+            "station": "WTVT",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "SF@DAL",
+            "station": "WTVT",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Washington (Hagerstown)": {
+          "CBS:EARLY": {
+            "game": "KC@ATL",
+            "station": "WUSA",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:EARLY": {
+            "game": "MIN@GB",
+            "station": "WTTG",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "SF@DAL",
+            "station": "WTTG",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "San Diego, CA": {
+          "FOX:EARLY": {
+            "game": "MIN@GB",
+            "station": "KSWB",
+            "source": "https://thesportsmaps.com/tv-markets/san-diego.html"
+          },
+          "CBS:LATE": {
+            "game": "LAR@ARI",
+            "station": "KFMB",
+            "source": "https://thesportsmaps.com/tv-markets/san-diego.html"
+          },
+          "FOX:LATE": {
+            "game": "SF@DAL",
+            "station": "KSWB",
+            "source": "https://thesportsmaps.com/tv-markets/san-diego.html"
+          }
+        }
+      }
+    },
+    "11": {
+      "markets": {
+        "Atlanta": {
+          "FOX:EARLY": {
+            "game": "TEN@DAL",
+            "station": "WAGA-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "CBS:EARLY": {
+            "game": "ARI@KC",
+            "station": "WGCL-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "CBS:LATE": {
+            "game": "JAX@NYG",
+            "station": "WGCL-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Boston (Manchester)": {
+          "FOX:EARLY": {
+            "game": "TEN@DAL",
+            "station": "WFXT",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "CBS:EARLY": {
+            "game": "MIA@BUF",
+            "station": "WBZ-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "CBS:LATE": {
+            "game": "JAX@NYG",
+            "station": "WBZ-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Charlotte": {
+          "FOX:EARLY": {
+            "game": "BAL@CAR",
+            "station": "WJZY",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "CBS:EARLY": {
+            "game": "PIT@PHI",
+            "station": "WBTV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "CBS:LATE": {
+            "game": "JAX@NYG",
+            "station": "WBTV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Chicago": {
+          "FOX:EARLY": {
+            "game": "NO@CHI",
+            "station": "WFLD",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "CBS:EARLY": {
+            "game": "ARI@KC",
+            "station": "WBBM-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "CBS:LATE": {
+            "game": "JAX@NYG",
+            "station": "WBBM-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Cleveland–Akron (Canton)": {
+          "FOX:EARLY": {
+            "game": "NO@CHI",
+            "station": "WJW",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "CBS:EARLY": {
+            "game": "PIT@PHI",
+            "station": "WOIO",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "CBS:LATE": {
+            "game": "JAX@NYG",
+            "station": "WOIO",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Dallas–Fort Worth": {
+          "FOX:EARLY": {
+            "game": "TEN@DAL",
+            "station": "KDFW",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "CBS:EARLY": {
+            "game": "ARI@KC",
+            "station": "KTVT",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "CBS:LATE": {
+            "game": "JAX@NYG",
+            "station": "KTVT",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Denver": {
+          "FOX:EARLY": {
+            "game": "NO@CHI",
+            "station": "KFCT",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "CBS:EARLY": {
+            "game": "ARI@KC",
+            "station": "KCNC-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "CBS:LATE": {
+            "game": "LV@DEN",
+            "station": "KCNC-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Detroit": {
+          "FOX:EARLY": {
+            "game": "TB@DET",
+            "station": "WJBK",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "CBS:EARLY": {
+            "game": "PIT@PHI",
+            "station": "WWJ-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "CBS:LATE": {
+            "game": "JAX@NYG",
+            "station": "WWJ-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Houston": {
+          "FOX:EARLY": {
+            "game": "TEN@DAL",
+            "station": "KRIV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "CBS:EARLY": {
+            "game": "ARI@KC",
+            "station": "KHOU",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "CBS:LATE": {
+            "game": "JAX@NYG",
+            "station": "KHOU",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Indianapolis": {
+          "FOX:EARLY": {
+            "game": "NO@CHI",
+            "station": "WXIN",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "CBS:EARLY": {
+            "game": "ARI@KC",
+            "station": "WTTV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "CBS:LATE": {
+            "game": "LV@DEN",
+            "station": "WTTV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Los Angeles": {
+          "FOX:LATE": {
+            "game": "NYJ@LAC",
+            "station": "KTTV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "CBS:EARLY": {
+            "game": "ARI@KC",
+            "station": "KCBS-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "CBS:LATE": {
+            "game": "JAX@NYG",
+            "station": "KCBS-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Miami–Fort Lauderdale": {
+          "FOX:LATE": {
+            "game": "NYJ@LAC",
+            "station": "WSVN",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "CBS:EARLY": {
+            "game": "MIA@BUF",
+            "station": "WFOR-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "CBS:LATE": {
+            "game": "JAX@NYG",
+            "station": "WFOR-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Minneapolis–St. Paul": {
+          "FOX:EARLY": {
+            "game": "NO@CHI",
+            "station": "WFTC",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "CBS:EARLY": {
+            "game": "ARI@KC",
+            "station": "WCCO-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "CBS:LATE": {
+            "game": "JAX@NYG",
+            "station": "WCCO-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "New York": {
+          "FOX:LATE": {
+            "game": "NYJ@LAC",
+            "station": "WNYW",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "CBS:EARLY": {
+            "game": "MIA@BUF",
+            "station": "WCBS-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "CBS:LATE": {
+            "game": "JAX@NYG",
+            "station": "WCBS-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Orlando–Daytona Beach–Melbourne": {
+          "FOX:EARLY": {
+            "game": "TB@DET",
+            "station": "WOFL",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "CBS:EARLY": {
+            "game": "ARI@KC",
+            "station": "WKMG-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "CBS:LATE": {
+            "game": "JAX@NYG",
+            "station": "WKMG-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Philadelphia": {
+          "FOX:LATE": {
+            "game": "NYJ@LAC",
+            "station": "WTXF-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "CBS:EARLY": {
+            "game": "PIT@PHI",
+            "station": "KYW-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "CBS:LATE": {
+            "game": "JAX@NYG",
+            "station": "KYW-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Phoenix (Prescott)": {
+          "FOX:EARLY": {
+            "game": "TEN@DAL",
+            "station": "KSAZ-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "CBS:EARLY": {
+            "game": "ARI@KC",
+            "station": "KPHO-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "CBS:LATE": {
+            "game": "JAX@NYG",
+            "station": "KPHO-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Portland, OR": {
+          "FOX:EARLY": {
+            "game": "TEN@DAL",
+            "station": "KPTV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "CBS:EARLY": {
+            "game": "ARI@KC",
+            "station": "KOIN",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "CBS:LATE": {
+            "game": "JAX@NYG",
+            "station": "KOIN",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Raleigh–Durham (Fayetteville)": {
+          "FOX:EARLY": {
+            "game": "BAL@CAR",
+            "station": "WRAZ",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "CBS:EARLY": {
+            "game": "PIT@PHI",
+            "station": "WNCN",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "CBS:LATE": {
+            "game": "JAX@NYG",
+            "station": "WNCN",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Sacramento–Stockton–Modesto": {
+          "FOX:EARLY": {
+            "game": "TEN@DAL",
+            "station": "KTXL",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "CBS:EARLY": {
+            "game": "ARI@KC",
+            "station": "KOVR",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "CBS:LATE": {
+            "game": "LV@DEN",
+            "station": "KOVR",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "San Francisco–Oakland–San Jose": {
+          "FOX:EARLY": {
+            "game": "TEN@DAL",
+            "station": "KTVU",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "CBS:EARLY": {
+            "game": "ARI@KC",
+            "station": "KPIX-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "CBS:LATE": {
+            "game": "LV@DEN",
+            "station": "KPIX-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Seattle–Tacoma": {
+          "FOX:EARLY": {
+            "game": "TEN@DAL",
+            "station": "KCPQ",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "CBS:EARLY": {
+            "game": "ARI@KC",
+            "station": "KIRO-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "CBS:LATE": {
+            "game": "JAX@NYG",
+            "station": "KIRO-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "St. Louis": {
+          "FOX:EARLY": {
+            "game": "NO@CHI",
+            "station": "KTVI",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "CBS:EARLY": {
+            "game": "ARI@KC",
+            "station": "KMOV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "CBS:LATE": {
+            "game": "LV@DEN",
+            "station": "KMOV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Tampa–St. Petersburg (Sarasota)": {
+          "FOX:EARLY": {
+            "game": "TB@DET",
+            "station": "WTVT",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "CBS:EARLY": {
+            "game": "ARI@KC",
+            "station": "WTSP",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "CBS:LATE": {
+            "game": "JAX@NYG",
+            "station": "WTSP",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Washington (Hagerstown)": {
+          "FOX:EARLY": {
+            "game": "BAL@CAR",
+            "station": "WTTG",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "CBS:EARLY": {
+            "game": "PIT@PHI",
+            "station": "WUSA",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "CBS:LATE": {
+            "game": "JAX@NYG",
+            "station": "WUSA",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "San Diego, CA": {
+          "FOX:LATE": {
+            "game": "NYJ@LAC",
+            "station": "KSWB",
+            "source": "https://www.thesportsmaps.com/tv-markets/san-diego.html"
+          },
+          "CBS:EARLY": {
+            "game": "ARI@KC",
+            "station": "KFMB",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "CBS:LATE": {
+            "game": "JAX@NYG",
+            "station": "KFMB",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        }
+      },
+      "national": [
+        {
+          "game": "IND@HOU",
+          "network": "PRIME",
+          "date": "2026-11-19",
+          "source": "https://www.nfl.com/schedules/2026/by-week/week-11"
+        },
+        {
+          "game": "MIN@SF",
+          "network": "NBC",
+          "date": "2026-11-22",
+          "source": "https://www.nfl.com/schedules/2026/by-week/week-11"
+        },
+        {
+          "game": "CIN@WSH",
+          "network": "ESPN",
+          "date": "2026-11-23",
+          "source": "https://www.nfl.com/schedules/2026/by-week/week-11"
+        }
+      ]
+    },
+    "12": {
+      "markets": {
+        "Atlanta": {
+          "CBS:LATE": {
+            "game": "NE@LAC",
+            "station": "WGCL-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:EARLY": {
+            "game": "ATL@MIN",
+            "station": "WAGA-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "SEA@SF",
+            "station": "WAGA-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Boston (Manchester)": {
+          "CBS:LATE": {
+            "game": "NE@LAC",
+            "station": "WBZ-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:EARLY": {
+            "game": "NYG@IND",
+            "station": "WFXT",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "SEA@SF",
+            "station": "WFXT",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Charlotte": {
+          "CBS:EARLY": {
+            "game": "NO@CIN",
+            "station": "WBTV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:EARLY": {
+            "game": "ATL@MIN",
+            "station": "WJZY",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "SEA@SF",
+            "station": "WJZY",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Chicago": {
+          "CBS:EARLY": {
+            "game": "NO@CIN",
+            "station": "WBBM-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:EARLY": {
+            "game": "ATL@MIN",
+            "station": "WFLD",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "SEA@SF",
+            "station": "WFLD",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Cleveland–Akron (Canton)": {
+          "CBS:EARLY": {
+            "game": "NO@CIN",
+            "station": "WOIO",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:EARLY": {
+            "game": "NYG@IND",
+            "station": "WJW",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "SEA@SF",
+            "station": "WJW",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Dallas–Fort Worth": {
+          "CBS:EARLY": {
+            "game": "NO@CIN",
+            "station": "KTVT",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:EARLY": {
+            "game": "NYG@IND",
+            "station": "KDFW",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "SEA@SF",
+            "station": "KDFW",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Denver": {
+          "CBS:EARLY": {
+            "game": "NO@CIN",
+            "station": "KCNC-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:EARLY": {
+            "game": "ATL@MIN",
+            "station": "KFCT",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "SEA@SF",
+            "station": "KFCT",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Detroit": {
+          "CBS:EARLY": {
+            "game": "NO@CIN",
+            "station": "WWJ-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:EARLY": {
+            "game": "ATL@MIN",
+            "station": "WJBK",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "SEA@SF",
+            "station": "WJBK",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Houston": {
+          "CBS:EARLY": {
+            "game": "BAL@HOU",
+            "station": "KHOU",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:EARLY": {
+            "game": "NYG@IND",
+            "station": "KRIV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "SEA@SF",
+            "station": "KRIV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Indianapolis": {
+          "CBS:LATE": {
+            "game": "NE@LAC",
+            "station": "WTTV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:EARLY": {
+            "game": "NYG@IND",
+            "station": "WXIN",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "SEA@SF",
+            "station": "WXIN",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Los Angeles": {
+          "CBS:LATE": {
+            "game": "NE@LAC",
+            "station": "KCBS-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:EARLY": {
+            "game": "ATL@MIN",
+            "station": "KTTV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "SEA@SF",
+            "station": "KTTV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Miami–Fort Lauderdale": {
+          "CBS:EARLY": {
+            "game": "NYJ@MIA",
+            "station": "WFOR-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:EARLY": {
+            "game": "NYG@IND",
+            "station": "WSVN",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "SEA@SF",
+            "station": "WSVN",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Minneapolis–St. Paul": {
+          "CBS:LATE": {
+            "game": "NE@LAC",
+            "station": "WCCO-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:EARLY": {
+            "game": "ATL@MIN",
+            "station": "WFTC",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "SEA@SF",
+            "station": "WFTC",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "New York": {
+          "CBS:EARLY": {
+            "game": "NYJ@MIA",
+            "station": "WCBS-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:EARLY": {
+            "game": "NYG@IND",
+            "station": "WNYW",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "SEA@SF",
+            "station": "WNYW",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Orlando–Daytona Beach–Melbourne": {
+          "CBS:EARLY": {
+            "game": "NO@CIN",
+            "station": "WKMG-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:EARLY": {
+            "game": "NYG@IND",
+            "station": "WOFL",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "SEA@SF",
+            "station": "WOFL",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Philadelphia": {
+          "CBS:EARLY": {
+            "game": "NO@CIN",
+            "station": "KYW-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:EARLY": {
+            "game": "NYG@IND",
+            "station": "WTXF-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "SEA@SF",
+            "station": "WTXF-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Phoenix (Prescott)": {
+          "CBS:EARLY": {
+            "game": "NO@CIN",
+            "station": "KPHO-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:EARLY": {
+            "game": "ATL@MIN",
+            "station": "KSAZ-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "WAS@ARI",
+            "station": "KSAZ-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Portland, OR": {
+          "CBS:EARLY": {
+            "game": "NO@CIN",
+            "station": "KOIN",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:EARLY": {
+            "game": "ATL@MIN",
+            "station": "KPTV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "SEA@SF",
+            "station": "KPTV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Raleigh–Durham (Fayetteville)": {
+          "CBS:EARLY": {
+            "game": "NO@CIN",
+            "station": "WNCN",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:EARLY": {
+            "game": "ATL@MIN",
+            "station": "WRAZ",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "SEA@SF",
+            "station": "WRAZ",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Sacramento–Stockton–Modesto": {
+          "CBS:EARLY": {
+            "game": "NO@CIN",
+            "station": "KOVR",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:EARLY": {
+            "game": "ATL@MIN",
+            "station": "KTXL",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "SEA@SF",
+            "station": "KTXL",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "San Francisco–Oakland–San Jose": {
+          "CBS:EARLY": {
+            "game": "NO@CIN",
+            "station": "KPIX-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:EARLY": {
+            "game": "ATL@MIN",
+            "station": "KTVU",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "SEA@SF",
+            "station": "KTVU",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Seattle–Tacoma": {
+          "CBS:EARLY": {
+            "game": "NO@CIN",
+            "station": "KIRO-TV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:EARLY": {
+            "game": "ATL@MIN",
+            "station": "KCPQ",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "SEA@SF",
+            "station": "KCPQ",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "St. Louis": {
+          "CBS:EARLY": {
+            "game": "NO@CIN",
+            "station": "KMOV",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:EARLY": {
+            "game": "ATL@MIN",
+            "station": "KTVI",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "SEA@SF",
+            "station": "KTVI",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Tampa–St. Petersburg (Sarasota)": {
+          "CBS:EARLY": {
+            "game": "NO@CIN",
+            "station": "WTSP",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:EARLY": {
+            "game": "NYG@IND",
+            "station": "WTVT",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "SEA@SF",
+            "station": "WTVT",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "Washington (Hagerstown)": {
+          "CBS:EARLY": {
+            "game": "BAL@HOU",
+            "station": "WUSA",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:EARLY": {
+            "game": "NYG@IND",
+            "station": "WTTG",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          },
+          "FOX:LATE": {
+            "game": "WAS@ARI",
+            "station": "WTTG",
+            "source": "https://entitledsports.com/schedule/nfl/coverage-map/"
+          }
+        },
+        "San Diego, CA": {
+          "CBS:LATE": {
+            "game": "NE@LAC",
+            "station": "KFMB",
+            "source": "https://www.thesportsmaps.com/tv-markets/san-diego.html"
+          },
+          "FOX:EARLY": {
+            "game": "ATL@MIN",
+            "station": "KSWB",
+            "source": "https://www.thesportsmaps.com/tv-markets/san-diego.html"
+          },
+          "FOX:LATE": {
+            "game": "SEA@SF",
+            "station": "KSWB",
+            "source": "https://www.thesportsmaps.com/tv-markets/san-diego.html"
+          }
+        }
+      }
+    }
+  }
+}
