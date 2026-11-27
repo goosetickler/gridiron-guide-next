@@ -11,7 +11,7 @@ async function ggEventLiveFetch(league,k,request){
 }
 
 const ggEventCache=new Map();
-const ggEventWatchLinks={"Paramount+":"https://www.paramountplus.com/","ESPN+":"https://www.espn.com/watch/","DAZN":"https://www.dazn.com/en-US/","Peacock":"https://www.peacocktv.com/","Prime Video":"https://www.primevideo.com/","Netflix":"https://www.netflix.com/","NBC":"https://www.nbc.com/","FOX":"https://www.foxsports.com/","ESPN":"https://www.espn.com/watch/"};
+const ggEventWatchLinks={"AKC TV":"https://www.akc.org/sports/akc-national-championship/","Paramount+":"https://www.paramountplus.com/","ESPN+":"https://www.espn.com/watch/","DAZN":"https://www.dazn.com/en-US/","Peacock":"https://www.peacocktv.com/","Prime Video":"https://www.primevideo.com/","Netflix":"https://www.netflix.com/","NBC":"https://www.nbc.com/","FOX":"https://www.foxsports.com/","ESPN":"https://www.espn.com/watch/"};
 async function ggEventSchedule(league,request){
  let cached=ggEventCache.get(league);
  if(!cached||Date.now()-cached.at>300000){cached={at:Date.now(),promise:Promise.resolve().then(()=>request("./data/"+league+"-events.json")).then(d=>d.version===1&&Array.isArray(d.games)?d.games:[]).catch(()=>[])};ggEventCache.set(league,cached);}
