@@ -3,7 +3,13 @@ function ggBroadcastType(p){return p.network==="League Pass"?"pass":p.regional?"
 function ggTeamSportProviders(league,g){return league==="nba"?ggNbaProviders(g):league==="nhl"?ggNhlProviders(g):ggSoccerProviders(g)}
 function ggTeamSportRadio(league,g){return league==="nba"?ggNbaRadioOptions(g):league==="nhl"?[{label:"SiriusXM",detail:"NHL schedule / subscription",url:"https://www.siriusxm.com/sports/nhl"},{label:"NHL Gamecenter",detail:"Game audio availability varies",url:"https://www.nhl.com/scores"}]:league==="mls"||league==="epl"?ggSoccerRadio(league,g):league==="f1"?[{label:"XM F1",detail:"Channel 835 / subscription; session coverage varies",url:"https://www.siriusxm.com/channels/f1-on-siriusxm"}]:[]}
 function ggNhlProviders(g){const out=new Map();for(const raw of g.broadcasts||[]){const n=raw.trim();let label=n,url="",regional=false;
-if(/^ESPN\+$/i.test(n)){url="https://www.espn.com/watch/";regional=true}
+const extra=/^(Mammoth\+|Utah16|SCRIPPS|BN\+|STLNHL|The Spot|DSN|CBJHN|CBJNHL|Wild\+|MINNHL|ABTV|FOXLA\+|SN-PIT|HHN|CARNHL|MNMT2|WWHO|KTVD)$/i;
+if(extra.test(n)){url="https://www.nhl.com/info/where-to-watch";regional=true}
+else if(/^NHLN$/i.test(n)){label="NHL Network";url="https://www.nhl.com/network"}
+else if(/^HBO MAX$/i.test(n)){label="HBO Max";url="https://www.hbomax.com/"}
+else if(/^Disney\+$/i.test(n)){url="https://www.disneyplus.com/"}
+else if(/^Prime Video$/i.test(n)){url="https://www.primevideo.com/";regional=true}
+else if(/^ESPN\+$/i.test(n)){url="https://www.espn.com/watch/";regional=true}
 else if(/^(ESPN|ESPN2|ABC)$/i.test(n))url="https://www.espn.com/watch/";
 else if(/^(TNT|TBS|truTV)$/i.test(n))url="https://www.hbomax.com/";
 else if(/^Hulu$/i.test(n))url="https://www.hulu.com/";
