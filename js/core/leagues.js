@@ -15,7 +15,7 @@ const GG_LEAGUES = Object.freeze(Object.fromEntries([
   ["nba","basketball","NBA","basketball/nba","date",false],
   ["f1","racing","F1","racing/f1","date",false],
   ["nhl","hockey","NHL","hockey/nhl","date",false],
-  ["mlb","baseball","MLB","baseball/mlb","date",false],["mma","event","MMA","mma/ufc","date",true],["boxing","event","Boxing","boxing","date",true]
+  ["mlb","baseball","MLB","baseball/mlb","date",false],["mma","event","MMA","mma/ufc","date",true],["boxing","event","Boxing","boxing","date",true],["tennis","event","Tennis","tennis/atp","date",true]
 ].map(([id,sport,label,espnPath,scheduleMode,enabled])=>[id,Object.freeze({
   id,sport,label,espnPath,scheduleMode,enabled,
   scoreboard:"https://site.api.espn.com/apis/site/v2/sports/"+espnPath+"/scoreboard",
