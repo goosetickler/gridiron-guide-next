@@ -1,0 +1,114 @@
+{
+  "version": 1,
+  "generatedAt": "2026-11-27T08:36:46.566Z",
+  "games": [
+    {
+      "id": "mma:2026-12-05T15:00:00.000Z:ufc-fight-night-adesanya-vs-magomedov",
+      "dateTime": "2026-12-05T15:00:00.000Z",
+      "eventName": "UFC Fight Night: Adesanya vs Magomedov",
+      "status": "pre",
+      "venue": "",
+      "fights": [],
+      "networks": [
+        "Paramount+"
+      ],
+      "source": "https://site.api.espn.com/apis/site/v2/sports/mma/ufc/scoreboard?dates=20261126-20270225&limit=200"
+    },
+    {
+      "id": "mma:2026-12-12T22:00:00.000Z:ufc-335-oliveira-vs-lopes",
+      "dateTime": "2026-12-12T22:00:00.000Z",
+      "eventName": "UFC 335: Oliveira vs. Lopes",
+      "status": "pre",
+      "venue": "",
+      "fights": [],
+      "networks": [
+        "Paramount+"
+      ],
+      "source": "https://site.api.espn.com/apis/site/v2/sports/mma/ufc/scoreboard?dates=20261126-20270225&limit=200"
+    },
+    {
+      "id": "mma:2027-01-16T23:00:00.000Z:ufc-fight-night-rodriguez-vs-garcia",
+      "dateTime": "2027-01-16T23:00:00.000Z",
+      "eventName": "UFC Fight Night: Rodriguez vs. Garcia",
+      "status": "pre",
+      "venue": "",
+      "fights": [],
+      "networks": [
+        "Paramount+"
+      ],
+      "source": "https://site.api.espn.com/apis/site/v2/sports/mma/ufc/scoreboard?dates=20261126-20270225&limit=200"
+    },
+    {
+      "id": "mma:2027-01-23T23:00:00.000Z:ufc-fight-night-bonfim-vs-brady",
+      "dateTime": "2027-01-23T23:00:00.000Z",
+      "eventName": "UFC Fight Night: Bonfim vs. Brady",
+      "status": "pre",
+      "venue": "",
+      "fights": [],
+      "networks": [
+        "Paramount+"
+      ],
+      "source": "https://site.api.espn.com/apis/site/v2/sports/mma/ufc/scoreboard?dates=20261126-20270225&limit=200"
+    },
+    {
+      "id": "mma:2027-01-30T23:00:00.000Z:ufc-336-van-vs-kape",
+      "dateTime": "2027-01-30T23:00:00.000Z",
+      "eventName": "UFC 336: Van vs. Kape",
+      "status": "pre",
+      "venue": "",
+      "fights": [],
+      "networks": [
+        "Paramount+"
+      ],
+      "source": "https://site.api.espn.com/apis/site/v2/sports/mma/ufc/scoreboard?dates=20261126-20270225&limit=200"
+    },
+    {
+      "id": "mma:2027-02-06T19:00:00.000Z:ufc-fight-night-salkilld-vs-saint-denis",
+      "dateTime": "2027-02-06T19:00:00.000Z",
+      "eventName": "UFC Fight Night: Salkilld vs. Saint Denis",
+      "status": "pre",
+      "venue": "",
+      "fights": [],
+      "networks": [
+        "Paramount+"
+      ],
+      "source": "https://site.api.espn.com/apis/site/v2/sports/mma/ufc/scoreboard?dates=20261126-20270225&limit=200"
+    },
+    {
+      "id": "mma:2027-02-13T23:00:00.000Z:ufc-fight-night-pyfer-vs-nickal",
+      "dateTime": "2027-02-13T23:00:00.000Z",
+      "eventName": "UFC Fight Night: Pyfer vs. Nickal",
+      "status": "pre",
+      "venue": "",
+      "fights": [],
+      "networks": [
+        "Paramount+"
+      ],
+      "source": "https://site.api.espn.com/apis/site/v2/sports/mma/ufc/scoreboard?dates=20261126-20270225&limit=200"
+    },
+    {
+      "id": "mma:2027-02-20T23:00:00.000Z:ufc-337",
+      "dateTime": "2027-02-20T23:00:00.000Z",
+      "eventName": "UFC 337",
+      "status": "pre",
+      "venue": "",
+      "fights": [],
+      "networks": [
+        "Paramount+"
+      ],
+      "source": "https://site.api.espn.com/apis/site/v2/sports/mma/ufc/scoreboard?dates=20261126-20270225&limit=200"
+    },
+    {
+      "id": "mma:2026-12-19T16:00:00.000Z:pfl-lyon-lapilus-vs-mckee",
+      "dateTime": "2026-12-19T16:00:00.000Z",
+      "eventName": "PFL Lyon: Lapilus vs. McKee",
+      "status": "pre",
+      "venue": "",
+      "fights": [],
+      "networks": [
+        "ESPN+"
+      ],
+      "source": "https://site.api.espn.com/apis/site/v2/sports/mma/pfl/scoreboard?dates=20261126-20270225&limit=200"
+    }
+  ]
+}
