@@ -1,7 +1,7 @@
 // Shared broadcast classification and provider selection for team sports.
 function ggBroadcastType(p){return p.network==="League Pass"?"pass":p.regional?"regional":"national"}
 function ggTeamSportProviders(league,g){return league==="nba"?ggNbaProviders(g):league==="nhl"?ggNhlProviders(g):ggSoccerProviders(g)}
-function ggTeamSportRadio(league,g){return league==="cfb"?[{label:"SiriusXM",detail:"College football schedule / subscription",url:"https://www.siriusxm.com/sports/college-football"}]:league==="nba"?ggNbaRadioOptions(g):league==="nhl"?[{label:"SiriusXM",detail:"NHL schedule / subscription",url:"https://www.siriusxm.com/sports/nhl"},{label:"NHL Gamecenter",detail:"Game audio availability varies",url:"https://www.nhl.com/scores"}]:league==="mls"||league==="epl"?ggSoccerRadio(league,g):league==="f1"?[{label:"XM F1",detail:"Channel 835 / subscription; session coverage varies",url:"https://www.siriusxm.com/channels/f1-on-siriusxm"}]:[]}
+function ggTeamSportRadio(league,g){return league==="cfb"?ggCfbRadio(g):league==="nba"?ggNbaRadioOptions(g):league==="nhl"?[{label:"SiriusXM",detail:"NHL schedule / subscription",url:"https://www.siriusxm.com/sports/nhl"},{label:"NHL Gamecenter",detail:"Game audio availability varies",url:"https://www.nhl.com/scores"}]:league==="mls"||league==="epl"?ggSoccerRadio(league,g):league==="f1"?[{label:"XM F1",detail:"Channel 835 / subscription; session coverage varies",url:"https://www.siriusxm.com/channels/f1-on-siriusxm"}]:[]}
 function ggNhlProviders(g){const out=new Map();for(const feed of (g.nhlFeeds|| (g.broadcasts||[]).map(network=>({network})))){const n=feed.network.trim();let label=n,url="",regional=false;
 const extra=/^(Mammoth\+|Utah16|SCRIPPS|BN\+|STLNHL|The Spot|DSN|CBJHN|CBJNHL|Wild\+|MINNHL|ABTV|FOXLA\+|SN-PIT|HHN|CARNHL|MNMT2|WWHO|KTVD)$/i;
 if(extra.test(n)){url="https://www.nhl.com/info/where-to-watch";regional=true}
@@ -53,4 +53,16 @@ async function ggNhlOfficialGames(request){
 function ggNhlMergeOfficial(games,rows){
  const norm=x=>{const a=String(x||"").toUpperCase();return ({NJ:"NJD",LA:"LAK",SJ:"SJS",TB:"TBL",WSH:"WSH",WAS:"WSH",UTAH:"UTA",MON:"MTL",VEG:"VGK"})[a]||a};
  for(const g of games){const matches=rows.filter(r=>norm(r.home)===norm(g.homeAbbr)&&norm(r.away)===norm(g.awayAbbr)&&Math.abs(Date.parse(r.dateTime)-Date.parse(g.dateTime))<3*3600000);if(matches.length!==1)continue;const feeds=(matches[0].feeds||[]).filter(b=>b.country==="US"&&["N","H","A"].includes(b.market)&&typeof b.network==="string");if(!feeds.length)continue;g.nhlFeeds=feeds;g.network=ggNhlProviders(g)[0]?.network||g.network;}
+}
+
+function ggCfbShort(name,abbr){
+ const aliases={"Mississippi State":"Miss St","Ohio State":"Ohio St","Michigan State":"Mich St","Florida State":"FSU","Penn State":"Penn St","Kansas State":"K-State","Oklahoma State":"OK State","Arizona State":"ASU","Iowa State":"Iowa St","Oregon State":"Oregon St","Washington State":"Wash St","North Carolina":"UNC","South Carolina":"S Carolina","North Carolina State":"NC State","West Virginia":"WVU","Virginia Tech":"Va Tech","Georgia Tech":"Ga Tech","Boston College":"BC","Notre Dame":"N Dame","Texas A&M":"Texas A&M","Texas Tech":"Tex Tech","Wake Forest":"Wake","Mississippi":"Ole Miss","Louisiana State":"LSU","Southern California":"USC","California":"Cal","Chattanooga":"Chatt","Connecticut":"UConn","Massachusetts":"UMass","San Diego State":"SDSU","Boise State":"Boise St","Miami (FL)":"Miami","Miami (OH)":"Miami OH"};
+ return aliases[name]||(name.length>10&&abbr?abbr:name);
+}
+function ggCfbRadio(g){
+ const sites={ALA:"https://rolltide.com",UGA:"https://georgiadogs.com",TEX:"https://texaslonghorns.com",OSU:"https://ohiostatebuckeyes.com",MICH:"https://mgoblue.com",ND:"https://fightingirish.com",ORE:"https://goducks.com",USC:"https://usctrojans.com",UCLA:"https://uclabruins.com",UTAH:"https://utahutes.com",BYU:"https://byucougars.com",TENN:"https://utsports.com",FLA:"https://floridagators.com",IOWA:"https://hawkeyesports.com",NEB:"https://huskers.com",OU:"https://soonersports.com",MISS:"https://olemisssports.com",MSST:"https://hailstate.com",LSU:"https://lsusports.net","TA&M":"https://12thman.com",TTU:"https://texastech.com",WASH:"https://gohuskies.com",IND:"https://iuhoosiers.com",MIA:"https://miamihurricanes.com",FSU:"https://seminoles.com",LOU:"https://gocards.com",MIZ:"https://mutigers.com",ARIZ:"https://arizonawildcats.com",HOU:"https://uhcougars.com",WAKE:"https://godeacs.com"};
+ const out=[{label:"SiriusXM",detail:"Subscription · college football schedule",url:"https://www.siriusxm.com/sports/college-football"}];
+ for(const side of ["away","home"]){const abbr=g[side+"Abbr"],name=g[side+"Team"];if(sites[abbr])out.push({label:ggCfbShort(name||abbr,abbr)+" Radio",detail:"Official school audio / availability varies",url:sites[abbr]});}
+ out.push({label:"Radio.net",detail:"Free station directory · game rights vary",url:"https://www.radio.net/sport/college-football"});
+ return out;
 }
