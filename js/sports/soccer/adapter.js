@@ -64,3 +64,15 @@ function ggSoccerProviders(game){
 
 // Racing uses session rows, not head-to-head game normalization.
 async function ggF1Fetch(day,request){const year=day.slice(0,4),raw=await request("https://api.jolpi.ca/ergast/f1/"+year+"/?limit=100");const races=raw?.MRData?.RaceTable?.Races;if(!Array.isArray(races))throw Error("Invalid F1 calendar");const rows=[];for(const r of races){for(const [label,s] of [["Practice 1",r.FirstPractice],["Practice 2",r.SecondPractice],["Practice 3",r.ThirdPractice],["Sprint Qualifying",r.SprintQualifying||r.SprintShootout],["Sprint",r.Sprint],["Qualifying",r.Qualifying],["Race",r]]){if(!s?.date||!s.time)continue;const dateTime=s.date+"T"+s.time;if(ggLocalDateKey(dateTime)!==day)continue;rows.push({id:year+"-"+r.round+"-"+label,dateTime,status:"pre",raceName:r.raceName,session:label,venue:r.Circuit?.circuitName||"",raceRound:r.round});}}return rows;}
+
+async function ggSoccerWeekFetch(leagueId,day,request){
+ const d=new Date(day+"T12:00:00"),a=new Date(d),b=new Date(d);a.setDate(d.getDate()-1);b.setDate(d.getDate()+7);
+ const end=new Date(d);end.setDate(d.getDate()+6);
+ const range=[a,b].map(x=>ggLocalDateKey(x).replace(/-/g,"")).join("-");
+ const limit=500,query="?dates="+range+"&limit="+limit+(leagueId==="cfb"?"&groups=80":"");
+ const url=GG_LEAGUES[leagueId].scoreboard;
+ for(const base of [url,url.replace("site.api.espn.com","site.web.api.espn.com")]){
+  try{const raw=await request(base+query);if(!Array.isArray(raw?.events)||raw.events.length>=limit)throw Error("Incomplete range");return ggSoccerNormalize(raw,leagueId).filter(g=>{const k=ggLocalDateKey(g.dateTime);return k>=day&&k<=ggLocalDateKey(end)});}catch(e){}
+ }
+ throw Error("Weekly range unavailable");
+}
