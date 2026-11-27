@@ -2785,7 +2785,7 @@ let directvZip=localStorage.getItem(DIRECTV_ZIP_KEY)||"";
       return '<div class="gg-team-leader-grid">'+["away","home"].map(side=>{
         const abbr=String(game[side+"Abbr"]||"").toUpperCase();
         const rows=top.filter(p=>String(p.teamAbbr||"").toUpperCase()===abbr).slice(0,3);
-        return '<section class="gg-team-leader-column"><span class="fantasy-team">'+escapeHtml(abbr)+'</span>'+ (rows.map(p=>'<div class="fantasy-player"><div class="fantasy-player-name">'+escapeHtml(p.name)+'</div><div class="fantasy-player-meta">'+(p.position?'<span class="fantasy-tag">'+escapeHtml(p.position)+'</span>':'')+'<span class="fantasy-line">'+escapeHtml(p.line||"")+'</span></div></div>').join("")||'<div class="fantasy-player">Stats unavailable</div>')+'</section>';
+        return '<section class="gg-team-leader-column" aria-label="'+escapeHtml(abbr)+'">'+ (rows.map(p=>'<div class="fantasy-player"><div class="gg-leader-identity"><div class="fantasy-player-name">'+escapeHtml(p.name)+'</div>'+(p.position?'<span class="fantasy-tag">'+escapeHtml(p.position)+'</span>':'')+'</div><div class="fantasy-player-meta"><span class="fantasy-line">'+escapeHtml(p.line||"")+'</span></div></div>').join("")||'<div class="fantasy-player">Stats unavailable</div>')+'</section>';
       }).join("")+'</div>';
     }
 
