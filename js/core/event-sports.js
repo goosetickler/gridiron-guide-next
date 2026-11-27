@@ -1,4 +1,4 @@
-const ggEventSources={mma:["UFC events","https://www.ufc.com/events"],boxing:["ESPN boxing schedule","https://www.espn.com/boxing/schedule"],xgames:["X Games schedule","https://www.xgames.com/"],surfing:["World Surf League events","https://www.worldsurfleague.com/events"],dogshows:["AKC events","https://www.akc.org/sports/"],};
+const ggEventSources={tennis:["ATP / WTA calendar","https://www.atptour.com/en/tournaments"],mma:["UFC events","https://www.ufc.com/events"],boxing:["ESPN boxing schedule","https://www.espn.com/boxing/schedule"],xgames:["X Games schedule","https://www.xgames.com/"],surfing:["World Surf League events","https://www.worldsurfleague.com/events"],dogshows:["AKC events","https://www.akc.org/sports/"],};
 const ggEventSport=id=>Object.hasOwn(ggEventSources,id);
 async function ggEventLiveFetch(league,k,request){
  if(!["mma","boxing"].includes(league))return [];
@@ -11,14 +11,14 @@ async function ggEventLiveFetch(league,k,request){
 }
 
 const ggEventCache=new Map();
-const ggEventWatchLinks={"AKC TV":"https://www.akc.org/sports/akc-national-championship/","Paramount+":"https://www.paramountplus.com/","ESPN+":"https://www.espn.com/watch/","DAZN":"https://www.dazn.com/en-US/","Peacock":"https://www.peacocktv.com/","Prime Video":"https://www.primevideo.com/","Netflix":"https://www.netflix.com/","NBC":"https://www.nbc.com/","FOX":"https://www.foxsports.com/","ESPN":"https://www.espn.com/watch/"};
+const ggEventWatchLinks={"Tennis Channel":"https://www.tennischannel.com/","Tennis Channel Plus":"https://www.tennischannel.com/","ESPN2":"https://www.espn.com/watch/","TNT":"https://www.tntdrama.com/","TBS":"https://www.tbs.com/","truTV":"https://www.trutv.com/","HBO Max":"https://www.hbomax.com/","ABC":"https://abc.com/","AKC TV":"https://www.akc.org/sports/akc-national-championship/","Paramount+":"https://www.paramountplus.com/","ESPN+":"https://www.espn.com/watch/","DAZN":"https://www.dazn.com/en-US/","Peacock":"https://www.peacocktv.com/","Prime Video":"https://www.primevideo.com/","Netflix":"https://www.netflix.com/","NBC":"https://www.nbc.com/","FOX":"https://www.foxsports.com/","ESPN":"https://www.espn.com/watch/"};
 async function ggEventSchedule(league,request){
  let cached=ggEventCache.get(league);
  if(!cached||Date.now()-cached.at>300000){cached={at:Date.now(),promise:Promise.resolve().then(()=>request("./data/"+league+"-events.json")).then(d=>d.version===1&&Array.isArray(d.games)?d.games:[]).catch(()=>[])};ggEventCache.set(league,cached);}
  return cached.promise;
 }
 async function ggEventFetch(league,k,request){
- const rows=(await ggEventSchedule(league,request)).filter(g=>g.dateTime&&ggLocalDateKey(g.dateTime)===k&&Array.isArray(g.networks)&&g.networks.length).map(g=>({...g,fights:g.fights||[],venue:g.venue||""}));
+ const rows=(await ggEventSchedule(league,request)).filter(g=>g.dateTime&&ggLocalDateKey(g.dateTime)===k&&Array.isArray(g.networks)&&(g.networks.length||league==="tennis")).map(g=>({...g,fights:g.fights||[],venue:g.venue||""}));
  if(rows.length||league!=="mma")return rows;
  return ggEventLiveFetch(league,k,request).catch(()=>[]);
 }
