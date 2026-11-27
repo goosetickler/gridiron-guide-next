@@ -1,16 +1,18 @@
 // Soccer scoreboard adapter. No NFL state or provider defaults.
 function ggSoccerNormalize(raw,leagueId){
-  if(!["soccer","basketball","hockey"].includes(GG_LEAGUES[leagueId]?.sport))throw Error("Unsupported scoreboard league");
+  if(!["soccer","basketball","hockey","football"].includes(GG_LEAGUES[leagueId]?.sport))throw Error("Unsupported scoreboard league");
   const seen=new Set(),games=[];
   for(const e of raw?.events||[]){
     const c=e.competitions?.[0],h=c?.competitors?.find(t=>t.homeAway==="home"),a=c?.competitors?.find(t=>t.homeAway==="away");
     if(!e.id||seen.has(String(e.id))||!h?.team||!a?.team)continue;
+    const rank=t=>{const n=Number(t.curatedRank?.current);return n>=1&&n<=25?n:null};
+    if(leagueId==="cfb"&&!rank(h)&&!rank(a))continue;
     const status=c.status||e.status||{},type=status.type||{};
     const list=x=>Array.isArray(x)?x:[];
     const names=[...list(c.broadcasts).flatMap(b=>list(b?.names).length?b.names:[b?.name||b?.shortName]),...list(c.geoBroadcasts).filter(b=>String(b?.region||b?.market?.type||"").toLowerCase()==="us").map(b=>b.media?.shortName)].filter(x=>typeof x==="string"&&x.trim());
-    if(["nba","nhl"].includes(leagueId)){for(const b of [...list(c.geoBroadcasts),...list(c.geoStreaming),...list(c.broadcasts),...list(e.broadcasts)]){const region=String(b?.region||"").toLowerCase();if(region&& !["us","usa","united states"].includes(region))continue;for(const n of [...list(b?.names),b?.media?.shortName,b?.media?.name,b?.name,b?.shortName])if(typeof n==="string"&&n.trim())names.push(n.trim());}}const broadcasts=[...new Set(names)];
+    if(["nba","nhl","cfb"].includes(leagueId)){for(const b of [...list(c.geoBroadcasts),...list(c.geoStreaming),...list(c.broadcasts),...list(e.broadcasts)]){const region=String(b?.region||"").toLowerCase();if(region&& !["us","usa","united states"].includes(region))continue;for(const n of [...list(b?.names),b?.media?.shortName,b?.media?.name,b?.name,b?.shortName])if(typeof n==="string"&&n.trim())names.push(n.trim());}}const broadcasts=[...new Set(names)];
     const record=t=>{const r=list(t.records).find(x=>["total","overall"].includes(String(x.type||x.name||"").toLowerCase()))||list(t.records).find(x=>String(x.name||"").toLowerCase()==="overall");return typeof r?.summary==="string"&&/^\d+-\d+(?:-\d+)?$/.test(r.summary)?r.summary:""};
-    const g=ggNormalizeGame({id:String(e.id),dateTime:e.date||c.date,homeTeam:["nba","nhl"].includes(leagueId)?(h.team.shortDisplayName||h.team.name):h.team.displayName||h.team.name,awayTeam:["nba","nhl"].includes(leagueId)?(a.team.shortDisplayName||a.team.name):a.team.displayName||a.team.name,homeAbbr:h.team.abbreviation,awayAbbr:a.team.abbreviation,homeLogo:h.team.logo||h.team.logos?.[0]?.href||"",awayLogo:a.team.logo||a.team.logos?.[0]?.href||"",homeRecord:record(h),awayRecord:record(a),homeScore:h.score,awayScore:a.score,homePenaltyScore:h.shootoutScore,awayPenaltyScore:a.shootoutScore,status:type.state||"pre",statusName:type.name||"",statusDetail:type.shortDetail||type.description||"",clock:status.displayClock||"",network:broadcasts[0]||"TBD",broadcasts,venue:c.venue?.fullName||""},leagueId);
+    const g=ggNormalizeGame({id:String(e.id),dateTime:e.date||c.date,homeRank:rank(h),awayRank:rank(a),homeTeam:leagueId==="cfb"?h.team.location||h.team.shortDisplayName:["nba","nhl"].includes(leagueId)?(h.team.shortDisplayName||h.team.name):h.team.displayName||h.team.name,awayTeam:leagueId==="cfb"?a.team.location||a.team.shortDisplayName:["nba","nhl"].includes(leagueId)?(a.team.shortDisplayName||a.team.name):a.team.displayName||a.team.name,homeAbbr:h.team.abbreviation,awayAbbr:a.team.abbreviation,homeLogo:h.team.logo||h.team.logos?.[0]?.href||"",awayLogo:a.team.logo||a.team.logos?.[0]?.href||"",homeRecord:record(h),awayRecord:record(a),homeScore:h.score,awayScore:a.score,homePenaltyScore:h.shootoutScore,awayPenaltyScore:a.shootoutScore,status:type.state||"pre",statusName:type.name||"",statusDetail:type.shortDetail||type.description||"",clock:status.displayClock||"",network:broadcasts[0]||"TBD",broadcasts,venue:c.venue?.fullName||""},leagueId);
     if(g){seen.add(g.id);games.push(g)}
   }
   return games.sort((a,b)=>new Date(a.dateTime)-new Date(b.dateTime));
@@ -21,9 +23,10 @@ function ggSoccerDateRange(day){
   return [from,to].map(x=>ggLocalDateKey(x).replace(/-/g,"")).join("-");
 }
 async function ggSoccerFetch(leagueId,day,request=fetchJson){
-  const league=GG_LEAGUES[leagueId];if(!["soccer","basketball","hockey"].includes(league?.sport))throw Error("Unsupported scoreboard league");
+  const league=GG_LEAGUES[leagueId];if(!["soccer","basketball","hockey","football"].includes(league?.sport))throw Error("Unsupported scoreboard league");
   const range=ggSoccerDateRange(day),query="?dates="+range+"&limit=200";
   const urls=[league.scoreboard+query,league.scoreboard.replace("site.api.espn.com","site.web.api.espn.com")+query,league.scoreboard+"?dates="+day.replace(/-/g,"")];
+  if(leagueId==="cfb"){const d=new Date(day+"T12:00:00"),next=new Date(d);next.setDate(d.getDate()+1);const dates=[day,ggLocalDateKey(next)];const raw=await Promise.all(dates.map(x=>request(league.scoreboard+"?groups=80&limit=500&dates="+x.replace(/-/g,""))));if(raw.some(r=>!Array.isArray(r?.events)))throw Error("Invalid college scoreboard");return ggSoccerNormalize({events:raw.flatMap(r=>r.events)},leagueId).filter(g=>ggLocalDateKey(g.dateTime)===day);}
   const errors=[];
   for(const url of urls){
     try{const raw=await request(url);if(!Array.isArray(raw?.events))throw Error("Invalid ESPN response: missing events");const games=ggSoccerNormalize(raw,leagueId).filter(g=>ggLocalDateKey(g.dateTime)===day);
@@ -36,6 +39,7 @@ function ggSoccerProviders(game){
   const names=game.broadcasts||[],out=new Map();
   for(const name of names){
     let p=null;
+    if(game.leagueId==="cfb"){const n=name.trim();if(/^(SEC Network|SECN|ACCN|ACC Network|ESPNU|ESPN News|ESPNEWS|SECN\+|ACCNX)$/i.test(n))p=[n,"https://www.espn.com/watch/"];else if(/^(CBS|CBS Sports Network|CBSSN)$/i.test(n))p=[n,"https://www.cbssports.com/watch/"];else if(/^(BTN|Big Ten Network)$/i.test(n))p=[n,"https://www.foxsports.com/live"];else if(/^CW$/i.test(n))p=[n,"https://www.cwtv.com/"];if(p){out.set(p[0],{label:p[0],url:p[1]});continue;}}
     if(/^dazn\b/i.test(name.trim()))continue;
     if(/^mymi$/i.test(name.trim()))continue;
     if(/^suns live$/i.test(name.trim()))p=["Suns Live","https://www.nba.com/suns/sunslive"];
