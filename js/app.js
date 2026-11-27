@@ -1533,18 +1533,20 @@ let directvZip=localStorage.getItem(DIRECTV_ZIP_KEY)||"";
         if([...select.options].some(option=>option.value===selected))select.value=selected;
       }
       if(list){
-        list.innerHTML=favoriteTeams.length
-          ? favoriteTeams.map(team=>`<button class="favorite-team-chip" type="button" data-favorite-league="${escapeHtml(team.league)}" data-favorite-team="${escapeHtml(team.id)}" title="Remove ${escapeHtml(team.name)}">★ ${escapeHtml(team.name)} <span class="remove">×</span></button>`).join("")
+        list.innerHTML=favoriteTeams.some(t=>t.league==="NFL")
+          ? favoriteTeams.filter(t=>t.league==="NFL").map(team=>`<button class="favorite-team-chip" type="button" data-favorite-league="${escapeHtml(team.league)}" data-favorite-team="${escapeHtml(team.id)}" title="Remove ${escapeHtml(team.name)}">★ ${escapeHtml(team.name)} <span class="remove">×</span></button>`).join("")
           : `<span class="favorite-team-empty">No favorite teams yet.</span>`;
       }
     }
     function addFavoriteTeam(league,id){
+      favoriteTeams=readFavoriteTeams();
       const team=NFL_TEAMS.find(item=>item.league===league&&item.id===id);
       if(!team||isFavoriteTeam(league,id))return;
       favoriteTeams=[...favoriteTeams,{league:team.league,id:team.id,name:team.name}];
       saveFavoriteTeams();renderFavoriteTeamSettings();renderSchedule();
     }
     function removeFavoriteTeam(league,id){
+      favoriteTeams=readFavoriteTeams();
       favoriteTeams=favoriteTeams.filter(item=>!(item.league===league&&item.id===id));
       saveFavoriteTeams();renderFavoriteTeamSettings();renderSchedule();
     }
