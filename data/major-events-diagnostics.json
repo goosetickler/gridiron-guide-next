@@ -1,8 +1,8 @@
 {
-  "generatedAt": "2026-11-27T08:32:35.951Z",
+  "generatedAt": "2026-11-27T08:36:46.566Z",
   "sports": {
     "mma": {
-      "events": 0,
+      "events": 9,
       "checks": [
         {
           "url": "https://www.ufc.com/events",
@@ -70,5 +70,43 @@
         }
       ]
     }
-  }
+  },
+  "broadcasters": [
+    {
+      "url": "https://site.api.espn.com/apis/site/v2/sports/mma/ufc/scoreboard?dates=20261126-20270225&limit=200",
+      "candidates": 8,
+      "matched": 8,
+      "status": 200,
+      "keys": [
+        "leagues",
+        "events",
+        "provider"
+      ]
+    },
+    {
+      "url": "https://site.api.espn.com/apis/site/v2/sports/mma/pfl/scoreboard?dates=20261126-20270225&limit=200",
+      "candidates": 1,
+      "matched": 1,
+      "status": 200,
+      "keys": [
+        "leagues",
+        "events",
+        "provider"
+      ]
+    },
+    {
+      "url": "https://site.api.espn.com/apis/site/v2/sports/boxing/scoreboard?dates=20261126-20270225&limit=200",
+      "candidates": 0,
+      "matched": 0,
+      "status": 404,
+      "error": "HTTP 404"
+    },
+    {
+      "url": "https://www.espn.com/watch/api/schedule?startDate=2026-11-27&endDate=2026-12-03&country=US",
+      "candidates": 0,
+      "matched": 0,
+      "status": 404,
+      "error": "HTTP 404"
+    }
+  ]
 }
