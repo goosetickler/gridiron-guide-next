@@ -1,0 +1,69 @@
+{
+  "version": 1,
+  "generatedAt": "2026-11-27T08:50:00Z",
+  "games": [
+    {
+      "id": "nds-2026",
+      "dateTime": "2026-11-26T12:00:00",
+      "status": "post",
+      "eventName": "National Dog Show",
+      "venue": "Oaks, Pennsylvania",
+      "networks": [
+        "NBC",
+        "Peacock"
+      ],
+      "source": "https://nds.nationaldogshow.com/",
+      "fights": []
+    },
+    {
+      "id": "akc-2026-12",
+      "dateTime": "2026-12-12T12:00:00",
+      "timeTbd": true,
+      "status": "pre",
+      "eventName": "AKC National Championship · Day 1",
+      "venue": "Orlando, Florida",
+      "networks": [
+        "AKC TV"
+      ],
+      "source": "https://www.akc.org/sports/akc-national-championship/",
+      "fights": []
+    },
+    {
+      "id": "akc-2026-13",
+      "dateTime": "2026-12-13T12:00:00",
+      "timeTbd": true,
+      "status": "pre",
+      "eventName": "AKC National Championship · Day 2",
+      "venue": "Orlando, Florida",
+      "networks": [
+        "AKC TV"
+      ],
+      "source": "https://www.akc.org/sports/akc-national-championship/",
+      "fights": []
+    },
+    {
+      "id": "westminster-2027-01",
+      "dateTime": "2027-02-01T19:30:00-05:00",
+      "status": "pre",
+      "eventName": "Westminster · Group Judging",
+      "venue": "Madison Square Garden",
+      "networks": [
+        "Netflix"
+      ],
+      "source": "https://www.westminsterkennelclub.org/tickets/purchase/",
+      "fights": []
+    },
+    {
+      "id": "westminster-2027-02",
+      "dateTime": "2027-02-02T19:00:00-05:00",
+      "status": "pre",
+      "eventName": "Westminster · Best in Show",
+      "venue": "Madison Square Garden",
+      "networks": [
+        "Netflix"
+      ],
+      "source": "https://www.westminsterkennelclub.org/tickets/purchase/",
+      "fights": []
+    }
+  ]
+}
