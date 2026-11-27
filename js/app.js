@@ -55,7 +55,7 @@
     const WEEKLY_COVERAGE_CACHE_TTL_MS=5*60*1000;
     const WEEKLY_COVERAGE_FEED_URL="https://goosetickler.github.io/streamline-/local-coverage-2026.json";
     // v4/v6 invalidate early-game snapshots incorrectly retained after a game ended.
-    const FANTASY_CACHE_PREFIX = ggLeagueCacheKey(GG_ACTIVE_LEAGUE.id,"gridironGuide.realFantasy.v4.");
+    const FANTASY_CACHE_PREFIX = ggLeagueCacheKey(GG_ACTIVE_LEAGUE.id,"gridironGuide.realFantasy.v5.");
     const LIVE_FANTASY_CACHE_TTL_MS = 90*1000;
     const RECENT_FINAL_FANTASY_CACHE_TTL_MS = 10*60*1000;
     const OLD_FINAL_FANTASY_CACHE_TTL_MS = 6*60*60*1000;
@@ -2766,7 +2766,7 @@ let directvZip=localStorage.getItem(DIRECTV_ZIP_KEY)||"";
     function initialFantasyBody(id){
       const title="FANTASY LEADERS";
       const cached=readCachedFantasy(FANTASY_CACHE_PREFIX + id);
-      return cached.length ? renderFantasyLeadersContent(title,cached) : `<div class="fantasy-list"><div class="fantasy-player"><span class="fantasy-player-name">Loading player stats<span class="fantasy-player-meta"><span class="fantasy-line">Fetching ESPN box score</span></span></span></div></div>`;
+      return cached.length ? renderFantasyLeadersContent(title,cached,allGames.find(g=>String(g.id)===String(id))) : `<div class="fantasy-list"><div class="fantasy-player"><span class="fantasy-player-name">Loading player stats<span class="fantasy-player-meta"><span class="fantasy-line">Fetching ESPN box score</span></span></span></div></div>`;
     }
     function renderFantasyBlock(game){
       if(!isLiveGame(game)&&!isFinalGame(game))return "";
@@ -2779,9 +2779,14 @@ let directvZip=localStorage.getItem(DIRECTV_ZIP_KEY)||"";
       </details>`;
     }
 
-    function renderFantasyLeadersContent(title,leaders){
-      const top=leaders.filter(p=>p.position!=="K").slice(0,3);
-      return `<div class="fantasy-list">${top.map(renderFantasyPlayer).join("")}</div>`;
+    function renderFantasyLeadersContent(title,leaders,game){
+      const top=leaders.filter(p=>p.position!=="K");
+      if(!game)return '<div class="fantasy-list">'+top.slice(0,6).map(renderFantasyPlayer).join("")+'</div>';
+      return '<div class="gg-team-leader-grid">'+["away","home"].map(side=>{
+        const abbr=String(game[side+"Abbr"]||"").toUpperCase();
+        const rows=top.filter(p=>String(p.teamAbbr||"").toUpperCase()===abbr).slice(0,3);
+        return '<section class="gg-team-leader-column"><span class="fantasy-team">'+escapeHtml(abbr)+'</span>'+ (rows.map(p=>'<div class="fantasy-player"><div class="fantasy-player-name">'+escapeHtml(p.name)+'</div><div class="fantasy-player-meta">'+(p.position?'<span class="fantasy-tag">'+escapeHtml(p.position)+'</span>':'')+'<span class="fantasy-line">'+escapeHtml(p.line||"")+'</span></div></div>').join("")||'<div class="fantasy-player">Stats unavailable</div>')+'</section>';
+      }).join("")+'</div>';
     }
 
     async function hydrateFantasyBlocks(games,{force=false}={}){
@@ -2793,7 +2798,7 @@ let directvZip=localStorage.getItem(DIRECTV_ZIP_KEY)||"";
         const title="FANTASY LEADERS";
         try{
           const leaders=await getFantasyLeaders(game,{force});
-          return {el,html:leaders.length?renderFantasyLeadersContent(title,leaders):renderFantasyUnavailable(title,"No player stats returned")};
+          return {el,html:leaders.length?renderFantasyLeadersContent(title,leaders,game):renderFantasyUnavailable(title,"No player stats returned")};
         }catch(err){return {el,html:renderFantasyUnavailable(title,"ESPN stats unavailable")};}
       }));
       await waitForFantasyMotion();
@@ -2814,7 +2819,7 @@ let directvZip=localStorage.getItem(DIRECTV_ZIP_KEY)||"";
         try{
           const summary = await fetchJson(`${ESPN_SUMMARY_BASE}?event=${encodeURIComponent(game.id)}`);
           const players = await resolveFantasyRosterPositions(summary,extractFantasyLeadersFromEspnSummary(summary));
-          const leaders = [...players.filter(p=>p.position!=="K").slice(0,3),...players.filter(p=>p.position==="K")];
+          const leaders = players;
           if(leaders.length) cacheFantasy(cacheKey, leaders);
           return leaders;
         }catch(err){
