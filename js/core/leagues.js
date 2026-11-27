@@ -1,6 +1,6 @@
 // League capabilities are declarative; only NFL is enabled until adapters are ready.
 const GG_SPORTS = Object.freeze({
-  football: Object.freeze({label:"Football",leagues:["nfl"]}),
+  football: Object.freeze({label:"Football",leagues:["nfl","cfb"]}),
   soccer: Object.freeze({label:"Soccer",leagues:["mls","epl"]}),
   basketball: Object.freeze({label:"Basketball",leagues:["nba"]}),
   hockey: Object.freeze({label:"Hockey",leagues:["nhl"]}),
@@ -9,6 +9,7 @@ const GG_SPORTS = Object.freeze({
 });
 const GG_LEAGUES = Object.freeze(Object.fromEntries([
   ["nfl","football","NFL","football/nfl","week",true],
+  ["cfb","football","College Football","football/college-football","date",true],
   ["mls","soccer","MLS","soccer/usa.1","date",false],
   ["epl","soccer","Premier League","soccer/eng.1","date",false],
   ["nba","basketball","NBA","basketball/nba","date",false],
