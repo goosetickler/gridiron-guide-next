@@ -3317,7 +3317,7 @@ let directvZip=localStorage.getItem(DIRECTV_ZIP_KEY)||"";
       if(kind==="week"){
         buildScheduleWeeks();
         const orderedWeeks=[...scheduleWeeks];
-        menu.innerHTML=orderedWeeks.map(w=>`<button type="button" data-nav-week="${escapeHtml(w.key)}" class="${w.key===selectedScheduleWeek?"active":""}">${escapeHtml(weekDateRange(w)||specialWeekMetaFor(w)?.dates||weekLabel(w))}</button>`).join("");
+        menu.innerHTML=orderedWeeks.map(w=>`<button type="button" data-nav-week="${escapeHtml(w.key)}" class="${w.key===selectedScheduleWeek?"active":""}">${escapeHtml(weekDateRange(w)||specialWeekMetaFor(w)?.dates||weekLabel(w))}<span class="gg-week-count">${allGames.filter(g=>scheduleWeekKey(g)===w.key).length||"–"}</span></button>`).join("");
         const selected=menu.querySelector(".active");
         if(selected)requestAnimationFrame(()=>{menu.scrollTop=Math.max(0,selected.offsetTop-8);});
       }
