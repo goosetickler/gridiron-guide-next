@@ -1,11 +1,11 @@
 import {writeFile,mkdir,rename} from 'node:fs/promises';
 const root=new URL('../data/',import.meta.url);
 await mkdir(root,{recursive:true});
-const sources={mma:['https://www.ufc.com/events','https://www.pflmma.com/'],boxing:['https://www.dazn.com/en-US/home','https://www.premierboxingchampions.com/'],xgames:['https://www.xgames.com/'],surfing:['https://www.worldsurfleague.com/events'],dogshows:['https://www.westminsterkennelclub.org/','https://nds.nationaldogshow.com/','https://www.akc.org/sports/conformation/national-championship/']};
+const sources={mma:['https://www.ufc.com/events','https://www.pflmma.com/'],boxing:['https://www.dazn.com/en-US/home','https://www.premierboxingchampions.com/']};
 const major=/\b(ESPN(?:2|\+)?|ABC|NBC(?:SN)?|CBS|FOX|FS1|FS2|TNT|TBS|USA Network|Peacock|Paramount\+|Netflix|Prime Video|Amazon Prime|DAZN|HBO Max|YouTube|WSL TV|PPV)\b/i;
 const report={generatedAt:new Date().toISOString(),sports:{}};
 
-const classify=t=>/\b(UFC|PFL|MMA|mixed martial arts)\b/i.test(t)?'mma':/\b(boxing|Top Rank|Matchroom)\b/i.test(t)?'boxing':/\bX Games\b/i.test(t)?'xgames':/\b(surfing|World Surf League)\b/i.test(t)?'surfing':/\b(dog shows?|Westminster Kennel Club|AKC National Championship)\b/i.test(t)?'dogshows':null;
+const classify=t=>/\b(UFC|PFL|MMA|mixed martial arts)\b/i.test(t)?'mma':/\b(boxing|Top Rank|Matchroom)\b/i.test(t)?'boxing':null;
 const networkNames=x=>Array.isArray(x)?x.flatMap(networkNames):typeof x==='string'?[x]:x&&typeof x==='object'?[...networkNames(x.name),...networkNames(x.displayName),...networkNames(x.names),...networkNames(x.network),...networkNames(x.media)]:[];
 const broadcasterRows=Object.fromEntries(Object.keys(sources).map(s=>[s,new Map()]));
 report.broadcasters=[];
