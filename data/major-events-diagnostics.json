@@ -1,0 +1,74 @@
+{
+  "generatedAt": "2026-11-27T08:32:35.951Z",
+  "sports": {
+    "mma": {
+      "events": 0,
+      "checks": [
+        {
+          "url": "https://www.ufc.com/events",
+          "status": 200,
+          "matched": 0
+        },
+        {
+          "url": "https://www.pflmma.com/",
+          "status": 200,
+          "matched": 0
+        }
+      ]
+    },
+    "boxing": {
+      "events": 0,
+      "checks": [
+        {
+          "url": "https://www.dazn.com/en-US/home",
+          "status": 200,
+          "matched": 0
+        },
+        {
+          "url": "https://www.premierboxingchampions.com/",
+          "error": "HTTP 403"
+        }
+      ]
+    },
+    "xgames": {
+      "events": 0,
+      "checks": [
+        {
+          "url": "https://www.xgames.com/",
+          "status": 200,
+          "matched": 0
+        }
+      ]
+    },
+    "surfing": {
+      "events": 0,
+      "checks": [
+        {
+          "url": "https://www.worldsurfleague.com/events",
+          "status": 200,
+          "matched": 0
+        }
+      ]
+    },
+    "dogshows": {
+      "events": 0,
+      "checks": [
+        {
+          "url": "https://www.westminsterkennelclub.org/",
+          "status": 200,
+          "matched": 0
+        },
+        {
+          "url": "https://nds.nationaldogshow.com/",
+          "status": 200,
+          "matched": 0
+        },
+        {
+          "url": "https://www.akc.org/sports/conformation/national-championship/",
+          "status": 200,
+          "matched": 0
+        }
+      ]
+    }
+  }
+}
