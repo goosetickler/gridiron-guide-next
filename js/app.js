@@ -3355,7 +3355,7 @@ let directvZip=localStorage.getItem(DIRECTV_ZIP_KEY)||"";
       resetPageScrollForNavigation();
     }
     function initSortControls(){
-      document.getElementById("previewWeek").addEventListener("click",e=>{e.stopPropagation();openDashboardPicker("week");});
+      document.getElementById("previewWeek").addEventListener("click",e=>{e.stopPropagation();document.getElementById("previewSportMenu").hidden=true;document.getElementById("previewSport").setAttribute("aria-expanded","false");openDashboardPicker("week");});
       document.getElementById("previewWeek").addEventListener("keydown",e=>{if(e.key==="Escape")closeResultsNavMenu();});
       document.getElementById("previewWeekMenu").addEventListener("keydown",e=>{if(e.key==="Escape"){closeResultsNavMenu();document.getElementById("previewWeek").focus();}});
       
