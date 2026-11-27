@@ -1,0 +1,2593 @@
+{
+  "version": 1,
+  "generatedAt": "2026-11-27T07:46:10.734Z",
+  "games": [
+    {
+      "id": "2026020400",
+      "dateTime": "2026-11-27T18:00:00Z",
+      "home": "BOS",
+      "away": "TOR",
+      "broadcasts": [
+        "TVAS",
+        "TSN4",
+        "NESN"
+      ],
+      "feeds": [
+        {
+          "network": "TVAS",
+          "country": "CA",
+          "market": "N"
+        },
+        {
+          "network": "TSN4",
+          "country": "CA",
+          "market": "A"
+        },
+        {
+          "network": "NESN",
+          "country": "US",
+          "market": "H"
+        }
+      ],
+      "sources": [
+        "NHL schedule API"
+      ]
+    },
+    {
+      "id": "2026020401",
+      "dateTime": "2026-11-27T18:00:00Z",
+      "home": "NJD",
+      "away": "CGY",
+      "broadcasts": [
+        "SN",
+        "MSGSN"
+      ],
+      "feeds": [
+        {
+          "network": "SN",
+          "country": "CA",
+          "market": "N"
+        },
+        {
+          "network": "MSGSN",
+          "country": "US",
+          "market": "H"
+        }
+      ],
+      "sources": [
+        "NHL schedule API"
+      ]
+    },
+    {
+      "id": "2026020402",
+      "dateTime": "2026-11-27T18:00:00Z",
+      "home": "NSH",
+      "away": "UTA",
+      "broadcasts": [
+        "Mammoth+",
+        "Utah16",
+        "SCRIPPS"
+      ],
+      "feeds": [
+        {
+          "network": "Mammoth+",
+          "country": "US",
+          "market": "A"
+        },
+        {
+          "network": "Utah16",
+          "country": "US",
+          "market": "A"
+        },
+        {
+          "network": "SCRIPPS",
+          "country": "US",
+          "market": "H"
+        }
+      ],
+      "sources": [
+        "NHL schedule API"
+      ]
+    },
+    {
+      "id": "2026020403",
+      "dateTime": "2026-11-27T19:00:00Z",
+      "home": "STL",
+      "away": "DAL",
+      "broadcasts": [
+        "NHLN",
+        "SN+",
+        "BN+",
+        "Prime Video",
+        "STLNHL"
+      ],
+      "feeds": [
+        {
+          "network": "NHLN",
+          "country": "US",
+          "market": "N"
+        },
+        {
+          "network": "SN+",
+          "country": "CA",
+          "market": "N"
+        },
+        {
+          "network": "BN+",
+          "country": "US",
+          "market": "H"
+        },
+        {
+          "network": "Prime Video",
+          "country": "US",
+          "market": "A"
+        },
+        {
+          "network": "STLNHL",
+          "country": "US",
+          "market": "H"
+        }
+      ],
+      "sources": [
+        "NHL schedule API"
+      ]
+    },
+    {
+      "id": "2026020404",
+      "dateTime": "2026-11-27T20:00:00Z",
+      "home": "TBL",
+      "away": "OTT",
+      "broadcasts": [
+        "TSN5",
+        "RDS",
+        "The Spot"
+      ],
+      "feeds": [
+        {
+          "network": "TSN5",
+          "country": "CA",
+          "market": "A"
+        },
+        {
+          "network": "RDS",
+          "country": "CA",
+          "market": "A"
+        },
+        {
+          "network": "The Spot",
+          "country": "US",
+          "market": "H"
+        }
+      ],
+      "sources": [
+        "NHL schedule API"
+      ]
+    },
+    {
+      "id": "2026020405",
+      "dateTime": "2026-11-27T20:00:00Z",
+      "home": "PHI",
+      "away": "VAN",
+      "broadcasts": [
+        "SNP",
+        "SN1",
+        "NBCSP"
+      ],
+      "feeds": [
+        {
+          "network": "SNP",
+          "country": "CA",
+          "market": "N"
+        },
+        {
+          "network": "SN1",
+          "country": "CA",
+          "market": "N"
+        },
+        {
+          "network": "NBCSP",
+          "country": "US",
+          "market": "H"
+        }
+      ],
+      "sources": [
+        "NHL schedule API"
+      ]
+    },
+    {
+      "id": "2026020406",
+      "dateTime": "2026-11-27T20:00:00Z",
+      "home": "WSH",
+      "away": "FLA",
+      "broadcasts": [
+        "MNMT",
+        "SCRIPPS"
+      ],
+      "feeds": [
+        {
+          "network": "MNMT",
+          "country": "US",
+          "market": "H"
+        },
+        {
+          "network": "SCRIPPS",
+          "country": "US",
+          "market": "A"
+        }
+      ],
+      "sources": [
+        "NHL schedule API"
+      ]
+    },
+    {
+      "id": "2026020407",
+      "dateTime": "2026-11-27T20:00:00Z",
+      "home": "CBJ",
+      "away": "DET",
+      "broadcasts": [
+        "DSN",
+        "CBJHN",
+        "CBJNHL"
+      ],
+      "feeds": [
+        {
+          "network": "DSN",
+          "country": "US",
+          "market": "A"
+        },
+        {
+          "network": "CBJHN",
+          "country": "US",
+          "market": "H"
+        },
+        {
+          "network": "CBJNHL",
+          "country": "US",
+          "market": "H"
+        }
+      ],
+      "sources": [
+        "NHL schedule API"
+      ]
+    },
+    {
+      "id": "2026020408",
+      "dateTime": "2026-11-27T21:00:00Z",
+      "home": "MIN",
+      "away": "COL",
+      "broadcasts": [
+        "TVAS",
+        "Wild+",
+        "ALT",
+        "MINNHL"
+      ],
+      "feeds": [
+        {
+          "network": "TVAS",
+          "country": "CA",
+          "market": "N"
+        },
+        {
+          "network": "Wild+",
+          "country": "US",
+          "market": "H"
+        },
+        {
+          "network": "ALT",
+          "country": "US",
+          "market": "A"
+        },
+        {
+          "network": "MINNHL",
+          "country": "US",
+          "market": "H"
+        }
+      ],
+      "sources": [
+        "NHL schedule API"
+      ]
+    },
+    {
+      "id": "2026020409",
+      "dateTime": "2026-11-27T21:00:00Z",
+      "home": "ANA",
+      "away": "LAK",
+      "broadcasts": [
+        "ABTV",
+        "FOXLA+",
+        "Prime Video"
+      ],
+      "feeds": [
+        {
+          "network": "ABTV",
+          "country": "US",
+          "market": "A"
+        },
+        {
+          "network": "FOXLA+",
+          "country": "US",
+          "market": "H"
+        },
+        {
+          "network": "Prime Video",
+          "country": "US",
+          "market": "H"
+        }
+      ],
+      "sources": [
+        "NHL schedule API"
+      ]
+    },
+    {
+      "id": "2026020410",
+      "dateTime": "2026-11-27T21:00:00Z",
+      "home": "SJS",
+      "away": "VGK",
+      "broadcasts": [
+        "SN",
+        "NBCSCA",
+        "SCRIPPS"
+      ],
+      "feeds": [
+        {
+          "network": "SN",
+          "country": "CA",
+          "market": "N"
+        },
+        {
+          "network": "NBCSCA",
+          "country": "US",
+          "market": "H"
+        },
+        {
+          "network": "SCRIPPS",
+          "country": "US",
+          "market": "A"
+        }
+      ],
+      "sources": [
+        "NHL schedule API"
+      ]
+    },
+    {
+      "id": "2026020411",
+      "dateTime": "2026-11-27T22:30:00Z",
+      "home": "CHI",
+      "away": "NYR",
+      "broadcasts": [
+        "TNT",
+        "truTV",
+        "HBO MAX",
+        "SN+"
+      ],
+      "feeds": [
+        {
+          "network": "TNT",
+          "country": "US",
+          "market": "N"
+        },
+        {
+          "network": "truTV",
+          "country": "US",
+          "market": "N"
+        },
+        {
+          "network": "HBO MAX",
+          "country": "US",
+          "market": "N"
+        },
+        {
+          "network": "SN+",
+          "country": "CA",
+          "market": "N"
+        }
+      ],
+      "sources": [
+        "NHL schedule API"
+      ]
+    },
+    {
+      "id": "2026020412",
+      "dateTime": "2026-11-28T00:30:00Z",
+      "home": "NYI",
+      "away": "WPG",
+      "broadcasts": [
+        "TSN3",
+        "MSGSN"
+      ],
+      "feeds": [
+        {
+          "network": "TSN3",
+          "country": "CA",
+          "market": "A"
+        },
+        {
+          "network": "MSGSN",
+          "country": "US",
+          "market": "H"
+        }
+      ],
+      "sources": [
+        "NHL schedule API"
+      ]
+    },
+    {
+      "id": "2026020413",
+      "dateTime": "2026-11-28T01:00:00Z",
+      "home": "BUF",
+      "away": "PIT",
+      "broadcasts": [
+        "TNT",
+        "truTV",
+        "HBO MAX",
+        "SN+",
+        "TVAS"
+      ],
+      "feeds": [
+        {
+          "network": "TNT",
+          "country": "US",
+          "market": "N"
+        },
+        {
+          "network": "truTV",
+          "country": "US",
+          "market": "N"
+        },
+        {
+          "network": "HBO MAX",
+          "country": "US",
+          "market": "N"
+        },
+        {
+          "network": "SN+",
+          "country": "CA",
+          "market": "N"
+        },
+        {
+          "network": "TVAS",
+          "country": "CA",
+          "market": "N"
+        }
+      ],
+      "sources": [
+        "NHL schedule API"
+      ]
+    },
+    {
+      "id": "2026020414",
+      "dateTime": "2026-11-28T01:00:00Z",
+      "home": "EDM",
+      "away": "SEA",
+      "broadcasts": [
+        "SN",
+        "Prime Video",
+        "KONG"
+      ],
+      "feeds": [
+        {
+          "network": "SN",
+          "country": "CA",
+          "market": "N"
+        },
+        {
+          "network": "Prime Video",
+          "country": "US",
+          "market": "A"
+        },
+        {
+          "network": "KONG",
+          "country": "US",
+          "market": "A"
+        }
+      ],
+      "sources": [
+        "NHL schedule API"
+      ]
+    },
+    {
+      "id": "2026020415",
+      "dateTime": "2026-11-28T21:00:00Z",
+      "home": "VGK",
+      "away": "MTL",
+      "broadcasts": [
+        "TSN2",
+        "TVAS",
+        "SCRIPPS"
+      ],
+      "feeds": [
+        {
+          "network": "TSN2",
+          "country": "CA",
+          "market": "A"
+        },
+        {
+          "network": "TVAS",
+          "country": "CA",
+          "market": "N"
+        },
+        {
+          "network": "SCRIPPS",
+          "country": "US",
+          "market": "H"
+        }
+      ],
+      "sources": [
+        "NHL schedule API"
+      ]
+    },
+    {
+      "id": "2026020416",
+      "dateTime": "2026-11-28T23:00:00Z",
+      "home": "FLA",
+      "away": "TBL",
+      "broadcasts": [
+        "The Spot",
+        "SCRIPPS"
+      ],
+      "feeds": [
+        {
+          "network": "The Spot",
+          "country": "US",
+          "market": "A"
+        },
+        {
+          "network": "SCRIPPS",
+          "country": "US",
+          "market": "H"
+        }
+      ],
+      "sources": [
+        "NHL schedule API"
+      ]
+    },
+    {
+      "id": "2026020417",
+      "dateTime": "2026-11-29T00:00:00Z",
+      "home": "DET",
+      "away": "NSH",
+      "broadcasts": [
+        "DSN",
+        "SCRIPPS"
+      ],
+      "feeds": [
+        {
+          "network": "DSN",
+          "country": "US",
+          "market": "H"
+        },
+        {
+          "network": "SCRIPPS",
+          "country": "US",
+          "market": "A"
+        }
+      ],
+      "sources": [
+        "NHL schedule API"
+      ]
+    },
+    {
+      "id": "2026020418",
+      "dateTime": "2026-11-29T00:00:00Z",
+      "home": "NJD",
+      "away": "WPG",
+      "broadcasts": [
+        "SN1",
+        "MSGSN"
+      ],
+      "feeds": [
+        {
+          "network": "SN1",
+          "country": "CA",
+          "market": "N"
+        },
+        {
+          "network": "MSGSN",
+          "country": "US",
+          "market": "H"
+        }
+      ],
+      "sources": [
+        "NHL schedule API"
+      ]
+    },
+    {
+      "id": "2026020419",
+      "dateTime": "2026-11-29T00:00:00Z",
+      "home": "NYR",
+      "away": "CGY",
+      "broadcasts": [
+        "SNW",
+        "NHLN",
+        "MSG"
+      ],
+      "feeds": [
+        {
+          "network": "SNW",
+          "country": "CA",
+          "market": "N"
+        },
+        {
+          "network": "NHLN",
+          "country": "US",
+          "market": "N"
+        },
+        {
+          "network": "MSG",
+          "country": "US",
+          "market": "H"
+        }
+      ],
+      "sources": [
+        "NHL schedule API"
+      ]
+    },
+    {
+      "id": "2026020420",
+      "dateTime": "2026-11-29T00:00:00Z",
+      "home": "PIT",
+      "away": "TOR",
+      "broadcasts": [
+        "SN",
+        "SN-PIT"
+      ],
+      "feeds": [
+        {
+          "network": "SN",
+          "country": "CA",
+          "market": "N"
+        },
+        {
+          "network": "SN-PIT",
+          "country": "US",
+          "market": "H"
+        }
+      ],
+      "sources": [
+        "NHL schedule API"
+      ]
+    },
+    {
+      "id": "2026020421",
+      "dateTime": "2026-11-29T00:00:00Z",
+      "home": "CAR",
+      "away": "OTT",
+      "broadcasts": [
+        "SNE",
+        "TVAS",
+        "HHN",
+        "CARNHL"
+      ],
+      "feeds": [
+        {
+          "network": "SNE",
+          "country": "CA",
+          "market": "N"
+        },
+        {
+          "network": "TVAS",
+          "country": "CA",
+          "market": "N"
+        },
+        {
+          "network": "HHN",
+          "country": "US",
+          "market": "H"
+        },
+        {
+          "network": "CARNHL",
+          "country": "US",
+          "market": "H"
+        }
+      ],
+      "sources": [
+        "NHL schedule API"
+      ]
+    },
+    {
+      "id": "2026020422",
+      "dateTime": "2026-11-29T00:00:00Z",
+      "home": "STL",
+      "away": "WSH",
+      "broadcasts": [
+        "BN+",
+        "MNMT2",
+        "STLNHL"
+      ],
+      "feeds": [
+        {
+          "network": "BN+",
+          "country": "US",
+          "market": "H"
+        },
+        {
+          "network": "MNMT2",
+          "country": "US",
+          "market": "A"
+        },
+        {
+          "network": "STLNHL",
+          "country": "US",
+          "market": "H"
+        }
+      ],
+      "sources": [
+        "NHL schedule API"
+      ]
+    },
+    {
+      "id": "2026020423",
+      "dateTime": "2026-11-29T00:30:00Z",
+      "home": "PHI",
+      "away": "NYI",
+      "broadcasts": [
+        "NBCSP",
+        "MSGSN2"
+      ],
+      "feeds": [
+        {
+          "network": "NBCSP",
+          "country": "US",
+          "market": "H"
+        },
+        {
+          "network": "MSGSN2",
+          "country": "US",
+          "market": "A"
+        }
+      ],
+      "sources": [
+        "NHL schedule API"
+      ]
+    },
+    {
+      "id": "2026020424",
+      "dateTime": "2026-11-29T01:00:00Z",
+      "home": "DAL",
+      "away": "UTA",
+      "broadcasts": [
+        "Mammoth+",
+        "Prime Video",
+        "Utah16"
+      ],
+      "feeds": [
+        {
+          "network": "Mammoth+",
+          "country": "US",
+          "market": "A"
+        },
+        {
+          "network": "Prime Video",
+          "country": "US",
+          "market": "H"
+        },
+        {
+          "network": "Utah16",
+          "country": "US",
+          "market": "A"
+        }
+      ],
+      "sources": [
+        "NHL schedule API"
+      ]
+    },
+    {
+      "id": "2026020425",
+      "dateTime": "2026-11-29T02:00:00Z",
+      "home": "COL",
+      "away": "SJS",
+      "broadcasts": [
+        "ALT",
+        "NBCSCA"
+      ],
+      "feeds": [
+        {
+          "network": "ALT",
+          "country": "US",
+          "market": "H"
+        },
+        {
+          "network": "NBCSCA",
+          "country": "US",
+          "market": "A"
+        }
+      ],
+      "sources": [
+        "NHL schedule API"
+      ]
+    },
+    {
+      "id": "2026020426",
+      "dateTime": "2026-11-29T02:00:00Z",
+      "home": "LAK",
+      "away": "ANA",
+      "broadcasts": [
+        "ABTV",
+        "FOXLA+",
+        "Prime Video"
+      ],
+      "feeds": [
+        {
+          "network": "ABTV",
+          "country": "US",
+          "market": "H"
+        },
+        {
+          "network": "FOXLA+",
+          "country": "US",
+          "market": "A"
+        },
+        {
+          "network": "Prime Video",
+          "country": "US",
+          "market": "A"
+        }
+      ],
+      "sources": [
+        "NHL schedule API"
+      ]
+    },
+    {
+      "id": "2026020427",
+      "dateTime": "2026-11-29T03:00:00Z",
+      "home": "SEA",
+      "away": "EDM",
+      "broadcasts": [
+        "SN",
+        "TVAS",
+        "Prime Video",
+        "KONG"
+      ],
+      "feeds": [
+        {
+          "network": "SN",
+          "country": "CA",
+          "market": "N"
+        },
+        {
+          "network": "TVAS",
+          "country": "CA",
+          "market": "N"
+        },
+        {
+          "network": "Prime Video",
+          "country": "US",
+          "market": "H"
+        },
+        {
+          "network": "KONG",
+          "country": "US",
+          "market": "H"
+        }
+      ],
+      "sources": [
+        "NHL schedule API"
+      ]
+    },
+    {
+      "id": "2026020428",
+      "dateTime": "2026-11-29T19:00:00Z",
+      "home": "CHI",
+      "away": "MIN",
+      "broadcasts": [
+        "NHLN",
+        "SN",
+        "TVAS",
+        "Wild+",
+        "CHSN",
+        "MINNHL"
+      ],
+      "feeds": [
+        {
+          "network": "NHLN",
+          "country": "US",
+          "market": "N"
+        },
+        {
+          "network": "SN",
+          "country": "CA",
+          "market": "N"
+        },
+        {
+          "network": "TVAS",
+          "country": "CA",
+          "market": "N"
+        },
+        {
+          "network": "Wild+",
+          "country": "US",
+          "market": "A"
+        },
+        {
+          "network": "CHSN",
+          "country": "US",
+          "market": "H"
+        },
+        {
+          "network": "MINNHL",
+          "country": "US",
+          "market": "A"
+        }
+      ],
+      "sources": [
+        "NHL schedule API"
+      ]
+    },
+    {
+      "id": "2026020429",
+      "dateTime": "2026-11-29T22:00:00Z",
+      "home": "BOS",
+      "away": "VAN",
+      "broadcasts": [
+        "SN",
+        "TVAS",
+        "NESN"
+      ],
+      "feeds": [
+        {
+          "network": "SN",
+          "country": "CA",
+          "market": "N"
+        },
+        {
+          "network": "TVAS",
+          "country": "CA",
+          "market": "N"
+        },
+        {
+          "network": "NESN",
+          "country": "US",
+          "market": "H"
+        }
+      ],
+      "sources": [
+        "NHL schedule API"
+      ]
+    },
+    {
+      "id": "2026020430",
+      "dateTime": "2026-11-30T18:00:00Z",
+      "home": "NSH",
+      "away": "OTT",
+      "broadcasts": [
+        "NHLN",
+        "TSN5",
+        "RDS",
+        "SCRIPPS"
+      ],
+      "feeds": [
+        {
+          "network": "NHLN",
+          "country": "US",
+          "market": "N"
+        },
+        {
+          "network": "TSN5",
+          "country": "CA",
+          "market": "A"
+        },
+        {
+          "network": "RDS",
+          "country": "CA",
+          "market": "A"
+        },
+        {
+          "network": "SCRIPPS",
+          "country": "US",
+          "market": "H"
+        }
+      ],
+      "sources": [
+        "NHL schedule API"
+      ]
+    },
+    {
+      "id": "2026020431",
+      "dateTime": "2026-12-01T00:00:00Z",
+      "home": "NYR",
+      "away": "CAR",
+      "broadcasts": [
+        "HHN",
+        "MSG",
+        "CARNHL"
+      ],
+      "feeds": [
+        {
+          "network": "HHN",
+          "country": "US",
+          "market": "A"
+        },
+        {
+          "network": "MSG",
+          "country": "US",
+          "market": "H"
+        },
+        {
+          "network": "CARNHL",
+          "country": "US",
+          "market": "A"
+        }
+      ],
+      "sources": [
+        "NHL schedule API"
+      ]
+    },
+    {
+      "id": "2026020432",
+      "dateTime": "2026-12-01T00:00:00Z",
+      "home": "PIT",
+      "away": "CBJ",
+      "broadcasts": [
+        "TVAS",
+        "WWHO",
+        "CBJHN",
+        "SN-PIT",
+        "CBJNHL"
+      ],
+      "feeds": [
+        {
+          "network": "TVAS",
+          "country": "CA",
+          "market": "N"
+        },
+        {
+          "network": "WWHO",
+          "country": "US",
+          "market": "A"
+        },
+        {
+          "network": "CBJHN",
+          "country": "US",
+          "market": "A"
+        },
+        {
+          "network": "SN-PIT",
+          "country": "US",
+          "market": "H"
+        },
+        {
+          "network": "CBJNHL",
+          "country": "US",
+          "market": "A"
+        }
+      ],
+      "sources": [
+        "NHL schedule API"
+      ]
+    },
+    {
+      "id": "2026020433",
+      "dateTime": "2026-12-01T00:30:00Z",
+      "home": "TOR",
+      "away": "PHI",
+      "broadcasts": [
+        "SN+",
+        "NBCSP"
+      ],
+      "feeds": [
+        {
+          "network": "SN+",
+          "country": "CA",
+          "market": "N"
+        },
+        {
+          "network": "NBCSP",
+          "country": "US",
+          "market": "A"
+        }
+      ],
+      "sources": [
+        "NHL schedule API"
+      ]
+    },
+    {
+      "id": "2026020434",
+      "dateTime": "2026-12-01T00:30:00Z",
+      "home": "WPG",
+      "away": "CHI",
+      "broadcasts": [
+        "SN+",
+        "CHSN"
+      ],
+      "feeds": [
+        {
+          "network": "SN+",
+          "country": "CA",
+          "market": "N"
+        },
+        {
+          "network": "CHSN",
+          "country": "US",
+          "market": "A"
+        }
+      ],
+      "sources": [
+        "NHL schedule API"
+      ]
+    },
+    {
+      "id": "2026020435",
+      "dateTime": "2026-12-01T02:30:00Z",
+      "home": "UTA",
+      "away": "MTL",
+      "broadcasts": [
+        "TSN2",
+        "RDS",
+        "Mammoth+",
+        "Utah16"
+      ],
+      "feeds": [
+        {
+          "network": "TSN2",
+          "country": "CA",
+          "market": "A"
+        },
+        {
+          "network": "RDS",
+          "country": "CA",
+          "market": "A"
+        },
+        {
+          "network": "Mammoth+",
+          "country": "US",
+          "market": "H"
+        },
+        {
+          "network": "Utah16",
+          "country": "US",
+          "market": "H"
+        }
+      ],
+      "sources": [
+        "NHL schedule API"
+      ]
+    },
+    {
+      "id": "2026020436",
+      "dateTime": "2026-12-02T00:00:00Z",
+      "home": "DET",
+      "away": "CGY",
+      "broadcasts": [
+        "SNW",
+        "DSN"
+      ],
+      "feeds": [
+        {
+          "network": "SNW",
+          "country": "CA",
+          "market": "N"
+        },
+        {
+          "network": "DSN",
+          "country": "US",
+          "market": "H"
+        }
+      ],
+      "sources": [
+        "NHL schedule API"
+      ]
+    },
+    {
+      "id": "2026020438",
+      "dateTime": "2026-12-02T00:00:00Z",
+      "home": "NYI",
+      "away": "FLA",
+      "broadcasts": [
+        "MSGSN",
+        "SCRIPPS"
+      ],
+      "feeds": [
+        {
+          "network": "MSGSN",
+          "country": "US",
+          "market": "H"
+        },
+        {
+          "network": "SCRIPPS",
+          "country": "US",
+          "market": "A"
+        }
+      ],
+      "sources": [
+        "NHL schedule API"
+      ]
+    },
+    {
+      "id": "2026020439",
+      "dateTime": "2026-12-02T00:00:00Z",
+      "home": "WSH",
+      "away": "VAN",
+      "broadcasts": [
+        "SNP",
+        "MNMT"
+      ],
+      "feeds": [
+        {
+          "network": "SNP",
+          "country": "CA",
+          "market": "N"
+        },
+        {
+          "network": "MNMT",
+          "country": "US",
+          "market": "H"
+        }
+      ],
+      "sources": [
+        "NHL schedule API"
+      ]
+    },
+    {
+      "id": "2026020437",
+      "dateTime": "2026-12-02T00:30:00Z",
+      "home": "NJD",
+      "away": "SJS",
+      "broadcasts": [
+        "ESPN+",
+        "HULU",
+        "Disney+",
+        "SN+"
+      ],
+      "feeds": [
+        {
+          "network": "ESPN+",
+          "country": "US",
+          "market": "N"
+        },
+        {
+          "network": "HULU",
+          "country": "US",
+          "market": "N"
+        },
+        {
+          "network": "Disney+",
+          "country": "US",
+          "market": "N"
+        },
+        {
+          "network": "SN+",
+          "country": "CA",
+          "market": "N"
+        }
+      ],
+      "sources": [
+        "NHL schedule API"
+      ]
+    },
+    {
+      "id": "2026020440",
+      "dateTime": "2026-12-02T01:00:00Z",
+      "home": "BOS",
+      "away": "COL",
+      "broadcasts": [
+        "TNT",
+        "truTV",
+        "HBO MAX",
+        "TVAS",
+        "NESN"
+      ],
+      "feeds": [
+        {
+          "network": "TNT",
+          "country": "US",
+          "market": "N"
+        },
+        {
+          "network": "truTV",
+          "country": "US",
+          "market": "N"
+        },
+        {
+          "network": "HBO MAX",
+          "country": "US",
+          "market": "N"
+        },
+        {
+          "network": "TVAS",
+          "country": "CA",
+          "market": "N"
+        },
+        {
+          "network": "NESN",
+          "country": "US",
+          "market": "H"
+        }
+      ],
+      "sources": [
+        "NHL schedule API"
+      ]
+    },
+    {
+      "id": "2026020441",
+      "dateTime": "2026-12-02T01:00:00Z",
+      "home": "EDM",
+      "away": "BUF",
+      "broadcasts": [
+        "SN",
+        "SN1",
+        "TVAS2",
+        "MSG-B"
+      ],
+      "feeds": [
+        {
+          "network": "SN",
+          "country": "CA",
+          "market": "N"
+        },
+        {
+          "network": "SN1",
+          "country": "CA",
+          "market": "N"
+        },
+        {
+          "network": "TVAS2",
+          "country": "CA",
+          "market": "N"
+        },
+        {
+          "network": "MSG-B",
+          "country": "US",
+          "market": "A"
+        }
+      ],
+      "sources": [
+        "NHL schedule API"
+      ]
+    },
+    {
+      "id": "2026020442",
+      "dateTime": "2026-12-02T02:40:00Z",
+      "home": "SEA",
+      "away": "DAL",
+      "broadcasts": [
+        "Prime Video",
+        "KONG"
+      ],
+      "feeds": [
+        {
+          "network": "Prime Video",
+          "country": "US",
+          "market": "A"
+        },
+        {
+          "network": "Prime Video",
+          "country": "US",
+          "market": "H"
+        },
+        {
+          "network": "KONG",
+          "country": "US",
+          "market": "H"
+        }
+      ],
+      "sources": [
+        "NHL schedule API"
+      ]
+    },
+    {
+      "id": "2026020443",
+      "dateTime": "2026-12-02T03:00:00Z",
+      "home": "ANA",
+      "away": "MIN",
+      "broadcasts": [
+        "TVAS",
+        "Wild+",
+        "Prime Video",
+        "MINNHL"
+      ],
+      "feeds": [
+        {
+          "network": "TVAS",
+          "country": "CA",
+          "market": "N"
+        },
+        {
+          "network": "Wild+",
+          "country": "US",
+          "market": "A"
+        },
+        {
+          "network": "Prime Video",
+          "country": "US",
+          "market": "H"
+        },
+        {
+          "network": "MINNHL",
+          "country": "US",
+          "market": "A"
+        }
+      ],
+      "sources": [
+        "NHL schedule API"
+      ]
+    },
+    {
+      "id": "2026020444",
+      "dateTime": "2026-12-02T03:00:00Z",
+      "home": "LAK",
+      "away": "VGK",
+      "broadcasts": [
+        "SN",
+        "TVAS2",
+        "ABTV",
+        "SCRIPPS"
+      ],
+      "feeds": [
+        {
+          "network": "SN",
+          "country": "CA",
+          "market": "N"
+        },
+        {
+          "network": "TVAS2",
+          "country": "CA",
+          "market": "N"
+        },
+        {
+          "network": "ABTV",
+          "country": "US",
+          "market": "H"
+        },
+        {
+          "network": "SCRIPPS",
+          "country": "US",
+          "market": "A"
+        }
+      ],
+      "sources": [
+        "NHL schedule API"
+      ]
+    },
+    {
+      "id": "2026020445",
+      "dateTime": "2026-12-03T00:30:00Z",
+      "home": "MTL",
+      "away": "TBL",
+      "broadcasts": [
+        "TNT",
+        "truTV",
+        "HBO MAX",
+        "Prime"
+      ],
+      "feeds": [
+        {
+          "network": "TNT",
+          "country": "US",
+          "market": "N"
+        },
+        {
+          "network": "truTV",
+          "country": "US",
+          "market": "N"
+        },
+        {
+          "network": "HBO MAX",
+          "country": "US",
+          "market": "N"
+        },
+        {
+          "network": "Prime",
+          "country": "CA",
+          "market": "N"
+        }
+      ],
+      "sources": [
+        "NHL schedule API"
+      ]
+    },
+    {
+      "id": "2026020446",
+      "dateTime": "2026-12-03T01:00:00Z",
+      "home": "STL",
+      "away": "PIT",
+      "broadcasts": [
+        "BN+",
+        "SN-PIT",
+        "STLNHL"
+      ],
+      "feeds": [
+        {
+          "network": "BN+",
+          "country": "US",
+          "market": "H"
+        },
+        {
+          "network": "SN-PIT",
+          "country": "US",
+          "market": "A"
+        },
+        {
+          "network": "STLNHL",
+          "country": "US",
+          "market": "H"
+        }
+      ],
+      "sources": [
+        "NHL schedule API"
+      ]
+    },
+    {
+      "id": "2026020447",
+      "dateTime": "2026-12-03T02:30:00Z",
+      "home": "UTA",
+      "away": "WPG",
+      "broadcasts": [
+        "TSN3",
+        "Mammoth+",
+        "Utah16"
+      ],
+      "feeds": [
+        {
+          "network": "TSN3",
+          "country": "CA",
+          "market": "A"
+        },
+        {
+          "network": "Mammoth+",
+          "country": "US",
+          "market": "H"
+        },
+        {
+          "network": "Utah16",
+          "country": "US",
+          "market": "H"
+        }
+      ],
+      "sources": [
+        "NHL schedule API"
+      ]
+    },
+    {
+      "id": "2026020448",
+      "dateTime": "2026-12-04T00:00:00Z",
+      "home": "TOR",
+      "away": "FLA",
+      "broadcasts": [
+        "TVAS",
+        "TSN4",
+        "SCRIPPS"
+      ],
+      "feeds": [
+        {
+          "network": "TVAS",
+          "country": "CA",
+          "market": "N"
+        },
+        {
+          "network": "TSN4",
+          "country": "CA",
+          "market": "H"
+        },
+        {
+          "network": "SCRIPPS",
+          "country": "US",
+          "market": "A"
+        }
+      ],
+      "sources": [
+        "NHL schedule API"
+      ]
+    },
+    {
+      "id": "2026020449",
+      "dateTime": "2026-12-04T00:00:00Z",
+      "home": "OTT",
+      "away": "NJD",
+      "broadcasts": [
+        "TSN5",
+        "RDS",
+        "MSGSN"
+      ],
+      "feeds": [
+        {
+          "network": "TSN5",
+          "country": "CA",
+          "market": "H"
+        },
+        {
+          "network": "RDS",
+          "country": "CA",
+          "market": "H"
+        },
+        {
+          "network": "MSGSN",
+          "country": "US",
+          "market": "A"
+        }
+      ],
+      "sources": [
+        "NHL schedule API"
+      ]
+    },
+    {
+      "id": "2026020450",
+      "dateTime": "2026-12-04T00:00:00Z",
+      "home": "DET",
+      "away": "COL",
+      "broadcasts": [
+        "DSN",
+        "ALT",
+        "KTVD"
+      ],
+      "feeds": [
+        {
+          "network": "DSN",
+          "country": "US",
+          "market": "H"
+        },
+        {
+          "network": "ALT",
+          "country": "US",
+          "market": "A"
+        },
+        {
+          "network": "KTVD",
+          "country": "US",
+          "market": "A"
+        }
+      ],
+      "sources": [
+        "NHL schedule API"
+      ]
+    },
+    {
+      "id": "2026020451",
+      "dateTime": "2026-12-04T00:00:00Z",
+      "home": "NYR",
+      "away": "SJS",
+      "broadcasts": [
+        "NBCSCA",
+        "MSG"
+      ],
+      "feeds": [
+        {
+          "network": "NBCSCA",
+          "country": "US",
+          "market": "A"
+        },
+        {
+          "network": "MSG",
+          "country": "US",
+          "market": "H"
+        }
+      ],
+      "sources": [
+        "NHL schedule API"
+      ]
+    },
+    {
+      "id": "2026020453",
+      "dateTime": "2026-12-04T00:00:00Z",
+      "home": "CAR",
+      "away": "CBJ",
+      "broadcasts": [
+        "HHN",
+        "CBJHN",
+        "CARNHL",
+        "CBJNHL"
+      ],
+      "feeds": [
+        {
+          "network": "HHN",
+          "country": "US",
+          "market": "H"
+        },
+        {
+          "network": "CBJHN",
+          "country": "US",
+          "market": "A"
+        },
+        {
+          "network": "CARNHL",
+          "country": "US",
+          "market": "H"
+        },
+        {
+          "network": "CBJNHL",
+          "country": "US",
+          "market": "A"
+        }
+      ],
+      "sources": [
+        "NHL schedule API"
+      ]
+    },
+    {
+      "id": "2026020452",
+      "dateTime": "2026-12-04T00:30:00Z",
+      "home": "PHI",
+      "away": "NYI",
+      "broadcasts": [
+        "ESPN+",
+        "HULU",
+        "Disney+",
+        "SN+"
+      ],
+      "feeds": [
+        {
+          "network": "ESPN+",
+          "country": "US",
+          "market": "N"
+        },
+        {
+          "network": "HULU",
+          "country": "US",
+          "market": "N"
+        },
+        {
+          "network": "Disney+",
+          "country": "US",
+          "market": "N"
+        },
+        {
+          "network": "SN+",
+          "country": "CA",
+          "market": "N"
+        }
+      ],
+      "sources": [
+        "NHL schedule API"
+      ]
+    },
+    {
+      "id": "2026020454",
+      "dateTime": "2026-12-04T01:00:00Z",
+      "home": "NSH",
+      "away": "CHI",
+      "broadcasts": [
+        "CHSN",
+        "SCRIPPS"
+      ],
+      "feeds": [
+        {
+          "network": "CHSN",
+          "country": "US",
+          "market": "A"
+        },
+        {
+          "network": "SCRIPPS",
+          "country": "US",
+          "market": "H"
+        }
+      ],
+      "sources": [
+        "NHL schedule API"
+      ]
+    },
+    {
+      "id": "2026020455",
+      "dateTime": "2026-12-04T01:00:00Z",
+      "home": "CGY",
+      "away": "BUF",
+      "broadcasts": [
+        "SN1",
+        "MSG-B"
+      ],
+      "feeds": [
+        {
+          "network": "SN1",
+          "country": "CA",
+          "market": "N"
+        },
+        {
+          "network": "MSG-B",
+          "country": "US",
+          "market": "A"
+        }
+      ],
+      "sources": [
+        "NHL schedule API"
+      ]
+    },
+    {
+      "id": "2026020456",
+      "dateTime": "2026-12-04T01:00:00Z",
+      "home": "EDM",
+      "away": "WSH",
+      "broadcasts": [
+        "SN",
+        "TVAS2",
+        "MNMT2"
+      ],
+      "feeds": [
+        {
+          "network": "SN",
+          "country": "CA",
+          "market": "N"
+        },
+        {
+          "network": "TVAS2",
+          "country": "CA",
+          "market": "N"
+        },
+        {
+          "network": "MNMT2",
+          "country": "US",
+          "market": "A"
+        }
+      ],
+      "sources": [
+        "NHL schedule API"
+      ]
+    },
+    {
+      "id": "2026020457",
+      "dateTime": "2026-12-04T03:00:00Z",
+      "home": "SEA",
+      "away": "DAL",
+      "broadcasts": [
+        "ESPN+",
+        "HULU",
+        "Disney+",
+        "SN+"
+      ],
+      "feeds": [
+        {
+          "network": "ESPN+",
+          "country": "US",
+          "market": "N"
+        },
+        {
+          "network": "HULU",
+          "country": "US",
+          "market": "N"
+        },
+        {
+          "network": "Disney+",
+          "country": "US",
+          "market": "N"
+        },
+        {
+          "network": "SN+",
+          "country": "CA",
+          "market": "N"
+        }
+      ],
+      "sources": [
+        "NHL schedule API"
+      ]
+    },
+    {
+      "id": "2026020458",
+      "dateTime": "2026-12-04T03:00:00Z",
+      "home": "VGK",
+      "away": "UTA",
+      "broadcasts": [
+        "SN360",
+        "Mammoth+",
+        "Utah16",
+        "SCRIPPS"
+      ],
+      "feeds": [
+        {
+          "network": "SN360",
+          "country": "CA",
+          "market": "N"
+        },
+        {
+          "network": "Mammoth+",
+          "country": "US",
+          "market": "A"
+        },
+        {
+          "network": "Utah16",
+          "country": "US",
+          "market": "A"
+        },
+        {
+          "network": "SCRIPPS",
+          "country": "US",
+          "market": "H"
+        }
+      ],
+      "sources": [
+        "NHL schedule API"
+      ]
+    },
+    {
+      "id": "2026020459",
+      "dateTime": "2026-12-04T03:00:00Z",
+      "home": "LAK",
+      "away": "MIN",
+      "broadcasts": [
+        "ABTV",
+        "Wild+",
+        "MINNHL"
+      ],
+      "feeds": [
+        {
+          "network": "ABTV",
+          "country": "US",
+          "market": "H"
+        },
+        {
+          "network": "Wild+",
+          "country": "US",
+          "market": "A"
+        },
+        {
+          "network": "MINNHL",
+          "country": "US",
+          "market": "A"
+        }
+      ],
+      "sources": [
+        "NHL schedule API"
+      ]
+    }
+  ],
+  "coverage": {
+    "windowDays": 7,
+    "total": 60,
+    "officialUS": 60,
+    "mappedUS": 34,
+    "officialUSPercent": 100,
+    "mappedUSPercent": 56.67,
+    "unknown": {
+      "CA / TVAS": 12,
+      "US / Mammoth+": 5,
+      "US / Utah16": 5,
+      "US / SCRIPPS": 12,
+      "US / NHLN": 4,
+      "CA / SN+": 8,
+      "US / BN+": 3,
+      "US / Prime Video": 9,
+      "US / STLNHL": 3,
+      "CA / RDS": 4,
+      "US / The Spot": 2,
+      "US / DSN": 4,
+      "US / CBJHN": 3,
+      "US / CBJNHL": 3,
+      "US / Wild+": 4,
+      "US / MINNHL": 4,
+      "US / ABTV": 4,
+      "US / FOXLA+": 2,
+      "US / HBO MAX": 4,
+      "US / SN-PIT": 3,
+      "US / HHN": 3,
+      "US / CARNHL": 3,
+      "US / MNMT2": 2,
+      "US / WWHO": 1,
+      "US / Disney+": 3,
+      "CA / TVAS2": 3,
+      "CA / Prime": 1,
+      "US / KTVD": 1,
+      "CA / SN360": 1
+    },
+    "unresolved": [
+      {
+        "id": "2026020402",
+        "home": "NSH",
+        "away": "UTA",
+        "dateTime": "2026-11-27T18:00:00Z",
+        "feeds": [
+          {
+            "network": "Mammoth+",
+            "country": "US",
+            "market": "A"
+          },
+          {
+            "network": "Utah16",
+            "country": "US",
+            "market": "A"
+          },
+          {
+            "network": "SCRIPPS",
+            "country": "US",
+            "market": "H"
+          }
+        ]
+      },
+      {
+        "id": "2026020403",
+        "home": "STL",
+        "away": "DAL",
+        "dateTime": "2026-11-27T19:00:00Z",
+        "feeds": [
+          {
+            "network": "NHLN",
+            "country": "US",
+            "market": "N"
+          },
+          {
+            "network": "SN+",
+            "country": "CA",
+            "market": "N"
+          },
+          {
+            "network": "BN+",
+            "country": "US",
+            "market": "H"
+          },
+          {
+            "network": "Prime Video",
+            "country": "US",
+            "market": "A"
+          },
+          {
+            "network": "STLNHL",
+            "country": "US",
+            "market": "H"
+          }
+        ]
+      },
+      {
+        "id": "2026020404",
+        "home": "TBL",
+        "away": "OTT",
+        "dateTime": "2026-11-27T20:00:00Z",
+        "feeds": [
+          {
+            "network": "TSN5",
+            "country": "CA",
+            "market": "A"
+          },
+          {
+            "network": "RDS",
+            "country": "CA",
+            "market": "A"
+          },
+          {
+            "network": "The Spot",
+            "country": "US",
+            "market": "H"
+          }
+        ]
+      },
+      {
+        "id": "2026020407",
+        "home": "CBJ",
+        "away": "DET",
+        "dateTime": "2026-11-27T20:00:00Z",
+        "feeds": [
+          {
+            "network": "DSN",
+            "country": "US",
+            "market": "A"
+          },
+          {
+            "network": "CBJHN",
+            "country": "US",
+            "market": "H"
+          },
+          {
+            "network": "CBJNHL",
+            "country": "US",
+            "market": "H"
+          }
+        ]
+      },
+      {
+        "id": "2026020409",
+        "home": "ANA",
+        "away": "LAK",
+        "dateTime": "2026-11-27T21:00:00Z",
+        "feeds": [
+          {
+            "network": "ABTV",
+            "country": "US",
+            "market": "A"
+          },
+          {
+            "network": "FOXLA+",
+            "country": "US",
+            "market": "H"
+          },
+          {
+            "network": "Prime Video",
+            "country": "US",
+            "market": "H"
+          }
+        ]
+      },
+      {
+        "id": "2026020415",
+        "home": "VGK",
+        "away": "MTL",
+        "dateTime": "2026-11-28T21:00:00Z",
+        "feeds": [
+          {
+            "network": "TSN2",
+            "country": "CA",
+            "market": "A"
+          },
+          {
+            "network": "TVAS",
+            "country": "CA",
+            "market": "N"
+          },
+          {
+            "network": "SCRIPPS",
+            "country": "US",
+            "market": "H"
+          }
+        ]
+      },
+      {
+        "id": "2026020416",
+        "home": "FLA",
+        "away": "TBL",
+        "dateTime": "2026-11-28T23:00:00Z",
+        "feeds": [
+          {
+            "network": "The Spot",
+            "country": "US",
+            "market": "A"
+          },
+          {
+            "network": "SCRIPPS",
+            "country": "US",
+            "market": "H"
+          }
+        ]
+      },
+      {
+        "id": "2026020417",
+        "home": "DET",
+        "away": "NSH",
+        "dateTime": "2026-11-29T00:00:00Z",
+        "feeds": [
+          {
+            "network": "DSN",
+            "country": "US",
+            "market": "H"
+          },
+          {
+            "network": "SCRIPPS",
+            "country": "US",
+            "market": "A"
+          }
+        ]
+      },
+      {
+        "id": "2026020420",
+        "home": "PIT",
+        "away": "TOR",
+        "dateTime": "2026-11-29T00:00:00Z",
+        "feeds": [
+          {
+            "network": "SN",
+            "country": "CA",
+            "market": "N"
+          },
+          {
+            "network": "SN-PIT",
+            "country": "US",
+            "market": "H"
+          }
+        ]
+      },
+      {
+        "id": "2026020421",
+        "home": "CAR",
+        "away": "OTT",
+        "dateTime": "2026-11-29T00:00:00Z",
+        "feeds": [
+          {
+            "network": "SNE",
+            "country": "CA",
+            "market": "N"
+          },
+          {
+            "network": "TVAS",
+            "country": "CA",
+            "market": "N"
+          },
+          {
+            "network": "HHN",
+            "country": "US",
+            "market": "H"
+          },
+          {
+            "network": "CARNHL",
+            "country": "US",
+            "market": "H"
+          }
+        ]
+      },
+      {
+        "id": "2026020422",
+        "home": "STL",
+        "away": "WSH",
+        "dateTime": "2026-11-29T00:00:00Z",
+        "feeds": [
+          {
+            "network": "BN+",
+            "country": "US",
+            "market": "H"
+          },
+          {
+            "network": "MNMT2",
+            "country": "US",
+            "market": "A"
+          },
+          {
+            "network": "STLNHL",
+            "country": "US",
+            "market": "H"
+          }
+        ]
+      },
+      {
+        "id": "2026020424",
+        "home": "DAL",
+        "away": "UTA",
+        "dateTime": "2026-11-29T01:00:00Z",
+        "feeds": [
+          {
+            "network": "Mammoth+",
+            "country": "US",
+            "market": "A"
+          },
+          {
+            "network": "Prime Video",
+            "country": "US",
+            "market": "H"
+          },
+          {
+            "network": "Utah16",
+            "country": "US",
+            "market": "A"
+          }
+        ]
+      },
+      {
+        "id": "2026020426",
+        "home": "LAK",
+        "away": "ANA",
+        "dateTime": "2026-11-29T02:00:00Z",
+        "feeds": [
+          {
+            "network": "ABTV",
+            "country": "US",
+            "market": "H"
+          },
+          {
+            "network": "FOXLA+",
+            "country": "US",
+            "market": "A"
+          },
+          {
+            "network": "Prime Video",
+            "country": "US",
+            "market": "A"
+          }
+        ]
+      },
+      {
+        "id": "2026020430",
+        "home": "NSH",
+        "away": "OTT",
+        "dateTime": "2026-11-30T18:00:00Z",
+        "feeds": [
+          {
+            "network": "NHLN",
+            "country": "US",
+            "market": "N"
+          },
+          {
+            "network": "TSN5",
+            "country": "CA",
+            "market": "A"
+          },
+          {
+            "network": "RDS",
+            "country": "CA",
+            "market": "A"
+          },
+          {
+            "network": "SCRIPPS",
+            "country": "US",
+            "market": "H"
+          }
+        ]
+      },
+      {
+        "id": "2026020432",
+        "home": "PIT",
+        "away": "CBJ",
+        "dateTime": "2026-12-01T00:00:00Z",
+        "feeds": [
+          {
+            "network": "TVAS",
+            "country": "CA",
+            "market": "N"
+          },
+          {
+            "network": "WWHO",
+            "country": "US",
+            "market": "A"
+          },
+          {
+            "network": "CBJHN",
+            "country": "US",
+            "market": "A"
+          },
+          {
+            "network": "SN-PIT",
+            "country": "US",
+            "market": "H"
+          },
+          {
+            "network": "CBJNHL",
+            "country": "US",
+            "market": "A"
+          }
+        ]
+      },
+      {
+        "id": "2026020435",
+        "home": "UTA",
+        "away": "MTL",
+        "dateTime": "2026-12-01T02:30:00Z",
+        "feeds": [
+          {
+            "network": "TSN2",
+            "country": "CA",
+            "market": "A"
+          },
+          {
+            "network": "RDS",
+            "country": "CA",
+            "market": "A"
+          },
+          {
+            "network": "Mammoth+",
+            "country": "US",
+            "market": "H"
+          },
+          {
+            "network": "Utah16",
+            "country": "US",
+            "market": "H"
+          }
+        ]
+      },
+      {
+        "id": "2026020436",
+        "home": "DET",
+        "away": "CGY",
+        "dateTime": "2026-12-02T00:00:00Z",
+        "feeds": [
+          {
+            "network": "SNW",
+            "country": "CA",
+            "market": "N"
+          },
+          {
+            "network": "DSN",
+            "country": "US",
+            "market": "H"
+          }
+        ]
+      },
+      {
+        "id": "2026020443",
+        "home": "ANA",
+        "away": "MIN",
+        "dateTime": "2026-12-02T03:00:00Z",
+        "feeds": [
+          {
+            "network": "TVAS",
+            "country": "CA",
+            "market": "N"
+          },
+          {
+            "network": "Wild+",
+            "country": "US",
+            "market": "A"
+          },
+          {
+            "network": "Prime Video",
+            "country": "US",
+            "market": "H"
+          },
+          {
+            "network": "MINNHL",
+            "country": "US",
+            "market": "A"
+          }
+        ]
+      },
+      {
+        "id": "2026020444",
+        "home": "LAK",
+        "away": "VGK",
+        "dateTime": "2026-12-02T03:00:00Z",
+        "feeds": [
+          {
+            "network": "SN",
+            "country": "CA",
+            "market": "N"
+          },
+          {
+            "network": "TVAS2",
+            "country": "CA",
+            "market": "N"
+          },
+          {
+            "network": "ABTV",
+            "country": "US",
+            "market": "H"
+          },
+          {
+            "network": "SCRIPPS",
+            "country": "US",
+            "market": "A"
+          }
+        ]
+      },
+      {
+        "id": "2026020446",
+        "home": "STL",
+        "away": "PIT",
+        "dateTime": "2026-12-03T01:00:00Z",
+        "feeds": [
+          {
+            "network": "BN+",
+            "country": "US",
+            "market": "H"
+          },
+          {
+            "network": "SN-PIT",
+            "country": "US",
+            "market": "A"
+          },
+          {
+            "network": "STLNHL",
+            "country": "US",
+            "market": "H"
+          }
+        ]
+      },
+      {
+        "id": "2026020447",
+        "home": "UTA",
+        "away": "WPG",
+        "dateTime": "2026-12-03T02:30:00Z",
+        "feeds": [
+          {
+            "network": "TSN3",
+            "country": "CA",
+            "market": "A"
+          },
+          {
+            "network": "Mammoth+",
+            "country": "US",
+            "market": "H"
+          },
+          {
+            "network": "Utah16",
+            "country": "US",
+            "market": "H"
+          }
+        ]
+      },
+      {
+        "id": "2026020448",
+        "home": "TOR",
+        "away": "FLA",
+        "dateTime": "2026-12-04T00:00:00Z",
+        "feeds": [
+          {
+            "network": "TVAS",
+            "country": "CA",
+            "market": "N"
+          },
+          {
+            "network": "TSN4",
+            "country": "CA",
+            "market": "H"
+          },
+          {
+            "network": "SCRIPPS",
+            "country": "US",
+            "market": "A"
+          }
+        ]
+      },
+      {
+        "id": "2026020453",
+        "home": "CAR",
+        "away": "CBJ",
+        "dateTime": "2026-12-04T00:00:00Z",
+        "feeds": [
+          {
+            "network": "HHN",
+            "country": "US",
+            "market": "H"
+          },
+          {
+            "network": "CBJHN",
+            "country": "US",
+            "market": "A"
+          },
+          {
+            "network": "CARNHL",
+            "country": "US",
+            "market": "H"
+          },
+          {
+            "network": "CBJNHL",
+            "country": "US",
+            "market": "A"
+          }
+        ]
+      },
+      {
+        "id": "2026020456",
+        "home": "EDM",
+        "away": "WSH",
+        "dateTime": "2026-12-04T01:00:00Z",
+        "feeds": [
+          {
+            "network": "SN",
+            "country": "CA",
+            "market": "N"
+          },
+          {
+            "network": "TVAS2",
+            "country": "CA",
+            "market": "N"
+          },
+          {
+            "network": "MNMT2",
+            "country": "US",
+            "market": "A"
+          }
+        ]
+      },
+      {
+        "id": "2026020458",
+        "home": "VGK",
+        "away": "UTA",
+        "dateTime": "2026-12-04T03:00:00Z",
+        "feeds": [
+          {
+            "network": "SN360",
+            "country": "CA",
+            "market": "N"
+          },
+          {
+            "network": "Mammoth+",
+            "country": "US",
+            "market": "A"
+          },
+          {
+            "network": "Utah16",
+            "country": "US",
+            "market": "A"
+          },
+          {
+            "network": "SCRIPPS",
+            "country": "US",
+            "market": "H"
+          }
+        ]
+      },
+      {
+        "id": "2026020459",
+        "home": "LAK",
+        "away": "MIN",
+        "dateTime": "2026-12-04T03:00:00Z",
+        "feeds": [
+          {
+            "network": "ABTV",
+            "country": "US",
+            "market": "H"
+          },
+          {
+            "network": "Wild+",
+            "country": "US",
+            "market": "A"
+          },
+          {
+            "network": "MINNHL",
+            "country": "US",
+            "market": "A"
+          }
+        ]
+      }
+    ]
+  }
+}
