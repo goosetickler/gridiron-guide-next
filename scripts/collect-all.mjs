@@ -11,7 +11,7 @@ await cp(resolve(root,'scripts'),resolve(out,'scripts'),{recursive:true});
 await cp(resolve(root,'js'),resolve(out,'js'),{recursive:true});
 await mkdir(resolve(out,'data'),{recursive:true});
 await cp(resolve(root,'data'),resolve(out,'data'),{recursive:true,force:false,errorOnExist:false});
-const jobs=['collect-nba-broadcasts.mjs','collect-nhl-broadcasts.mjs','collect-major-events.mjs'];
+const jobs=['collect-nba-broadcasts.mjs','collect-nhl-broadcasts.mjs','collect-major-events.mjs','collect-tennis.mjs'];
 let failed=0;
 for(const job of jobs){console.log('\n=== '+job+' ===');const p=spawnSync(process.execPath,[resolve(out,'scripts',job),...process.argv.slice(2)],{cwd:out,stdio:'inherit'});if(p.status!==0){failed++;console.error('FAILED: '+job);}}
 console.log('\nCollectors finished: '+(jobs.length-failed)+'/'+jobs.length);
