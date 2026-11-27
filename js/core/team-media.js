@@ -2,7 +2,7 @@
 function ggBroadcastType(p){return p.network==="League Pass"?"pass":p.regional?"regional":"national"}
 function ggTeamSportProviders(league,g){return league==="nba"?ggNbaProviders(g):league==="nhl"?ggNhlProviders(g):ggSoccerProviders(g)}
 function ggTeamSportRadio(league,g){return league==="nba"?ggNbaRadioOptions(g):league==="nhl"?[{label:"SiriusXM",detail:"NHL schedule / subscription",url:"https://www.siriusxm.com/sports/nhl"},{label:"NHL Gamecenter",detail:"Game audio availability varies",url:"https://www.nhl.com/scores"}]:league==="mls"||league==="epl"?ggSoccerRadio(league,g):league==="f1"?[{label:"XM F1",detail:"Channel 835 / subscription; session coverage varies",url:"https://www.siriusxm.com/channels/f1-on-siriusxm"}]:[]}
-function ggNhlProviders(g){const out=new Map();for(const raw of g.broadcasts||[]){const n=raw.trim();let label=n,url="",regional=false;
+function ggNhlProviders(g){const out=new Map();for(const feed of (g.nhlFeeds|| (g.broadcasts||[]).map(network=>({network})))){const n=feed.network.trim();let label=n,url="",regional=false;
 const extra=/^(Mammoth\+|Utah16|SCRIPPS|BN\+|STLNHL|The Spot|DSN|CBJHN|CBJNHL|Wild\+|MINNHL|ABTV|FOXLA\+|SN-PIT|HHN|CARNHL|MNMT2|WWHO|KTVD)$/i;
 if(extra.test(n)){url="https://www.nhl.com/info/where-to-watch";regional=true}
 else if(/^NHLN$/i.test(n)){label="NHL Network";url="https://www.nhl.com/network"}
@@ -23,7 +23,7 @@ else if(/Sportsnet|^SN[0-9WEP]?$/i.test(n)){url="https://www.sportsnet.ca/";regi
 else if(/^TSN/i.test(n)){url="https://www.tsn.ca/";regional=true}
 else if(/^(Victory\+|Victory Plus)$/i.test(n)){url="https://victoryplus.com/";regional=true}
 else if(/^(Scripps Sports|Utah 16|KONG|KCAL|KCOP|CHSN|Monumental|MNMT|SNP|SNO|ROOT Sports)$/i.test(n)){url="https://www.nhl.com/info/where-to-watch";regional=true}
-if(url)out.set(label.toUpperCase(),{label,network:label,url,regional});}return [...out.values()].sort((a,b)=>Number(a.regional)-Number(b.regional))}
+if(feed.market){regional=feed.market!=="N";if(!url)url="https://www.nhl.com/info/where-to-watch";}if(url){const key=label.toUpperCase();const prior=out.get(key);out.set(key,{label,network:label,url,regional:prior?prior.regional&&regional:regional});}}return [...out.values()].sort((a,b)=>Number(a.regional)-Number(b.regional))}
 
 // Free station directories and official streams; no guarantee of match-level rights.
 function ggSoccerRadio(league,g){
@@ -42,4 +42,15 @@ function ggSoccerRadio(league,g){
  }
  add("XM FC","Subscription · soccer schedule; match coverage varies","https://www.siriusxm.com/sports/soccer");
  return options;
+}
+
+let ggNhlOfficialCache=null,ggNhlOfficialAt=0,ggNhlOfficialPending=null;
+async function ggNhlOfficialGames(request){
+ if(ggNhlOfficialCache&&Date.now()-ggNhlOfficialAt<3600000)return ggNhlOfficialCache;
+ if(ggNhlOfficialPending)return ggNhlOfficialPending;
+ ggNhlOfficialPending=(async()=>{try{const j=await request("./data/nhl-broadcasts.json");if(j.version!==1||!Array.isArray(j.games)||!Number.isFinite(Date.parse(j.generatedAt))||Date.now()-Date.parse(j.generatedAt)>7*86400000)return [];ggNhlOfficialCache=j.games;ggNhlOfficialAt=Date.now();return j.games}catch{return []}finally{ggNhlOfficialPending=null}})();return ggNhlOfficialPending;
+}
+function ggNhlMergeOfficial(games,rows){
+ const norm=x=>{const a=String(x||"").toUpperCase();return ({NJ:"NJD",LA:"LAK",SJ:"SJS",TB:"TBL",WSH:"WSH",WAS:"WSH",UTAH:"UTA",MON:"MTL",VEG:"VGK"})[a]||a};
+ for(const g of games){const matches=rows.filter(r=>norm(r.home)===norm(g.homeAbbr)&&norm(r.away)===norm(g.awayAbbr)&&Math.abs(Date.parse(r.dateTime)-Date.parse(g.dateTime))<3*3600000);if(matches.length!==1)continue;const feeds=(matches[0].feeds||[]).filter(b=>b.country==="US"&&["N","H","A"].includes(b.market)&&typeof b.network==="string");if(!feeds.length)continue;g.nhlFeeds=feeds;g.network=ggNhlProviders(g)[0]?.network||g.network;}
 }
