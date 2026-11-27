@@ -1,7 +1,7 @@
 // Shared broadcast classification and provider selection for team sports.
 function ggBroadcastType(p){return p.network==="League Pass"?"pass":p.regional?"regional":"national"}
 function ggTeamSportProviders(league,g){return league==="nba"?ggNbaProviders(g):league==="nhl"?ggNhlProviders(g):ggSoccerProviders(g)}
-function ggTeamSportRadio(league,g){return league==="nba"?ggNbaRadioOptions(g):league==="nhl"?[{label:"SiriusXM",detail:"NHL schedule / subscription",url:"https://www.siriusxm.com/sports/nhl"},{label:"NHL Gamecenter",detail:"Game audio availability varies",url:"https://www.nhl.com/scores"}]:[]}
+function ggTeamSportRadio(league,g){return league==="nba"?ggNbaRadioOptions(g):league==="nhl"?[{label:"SiriusXM",detail:"NHL schedule / subscription",url:"https://www.siriusxm.com/sports/nhl"},{label:"NHL Gamecenter",detail:"Game audio availability varies",url:"https://www.nhl.com/scores"}]:league==="mls"||league==="epl"?[{label:"XM FC",detail:"Soccer schedule / subscription; match coverage varies",url:"https://www.siriusxm.com/sports/soccer"}]:league==="f1"?[{label:"XM F1",detail:"Channel 835 / subscription; session coverage varies",url:"https://www.siriusxm.com/channels/f1-on-siriusxm"}]:[]}
 function ggNhlProviders(g){const out=new Map();for(const raw of g.broadcasts||[]){const n=raw.trim();let label=n,url="",regional=false;
 if(/^ESPN\+$/i.test(n)){url="https://www.espn.com/watch/";regional=true}
 else if(/^(ESPN|ESPN2|ABC)$/i.test(n))url="https://www.espn.com/watch/";
