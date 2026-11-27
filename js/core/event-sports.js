@@ -12,10 +12,13 @@ async function ggEventLiveFetch(league,k,request){
 
 const ggEventCache=new Map();
 const ggEventWatchLinks={"Paramount+":"https://www.paramountplus.com/","ESPN+":"https://www.espn.com/watch/","DAZN":"https://www.dazn.com/en-US/","Peacock":"https://www.peacocktv.com/","Prime Video":"https://www.primevideo.com/","Netflix":"https://www.netflix.com/","NBC":"https://www.nbc.com/","FOX":"https://www.foxsports.com/","ESPN":"https://www.espn.com/watch/"};
-async function ggEventFetch(league,k,request){
+async function ggEventSchedule(league,request){
  let cached=ggEventCache.get(league);
  if(!cached||Date.now()-cached.at>300000){cached={at:Date.now(),promise:Promise.resolve().then(()=>request("./data/"+league+"-events.json")).then(d=>d.version===1&&Array.isArray(d.games)?d.games:[]).catch(()=>[])};ggEventCache.set(league,cached);}
- const rows=(await cached.promise).filter(g=>g.dateTime&&ggLocalDateKey(g.dateTime)===k&&Array.isArray(g.networks)&&g.networks.length).map(g=>({...g,fights:g.fights||[],venue:g.venue||""}));
+ return cached.promise;
+}
+async function ggEventFetch(league,k,request){
+ const rows=(await ggEventSchedule(league,request)).filter(g=>g.dateTime&&ggLocalDateKey(g.dateTime)===k&&Array.isArray(g.networks)&&g.networks.length).map(g=>({...g,fights:g.fights||[],venue:g.venue||""}));
  if(rows.length||league!=="mma")return rows;
  return ggEventLiveFetch(league,k,request).catch(()=>[]);
 }
